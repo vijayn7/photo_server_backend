@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel - Photo Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .upload-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .files-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .file-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .file-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 1rem;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .file-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        .file-item img {
+            max-width: 100%;
+            height: auto;
+            max-height: 150px;
+            margin-bottom: 0.5rem;
+        }
+        .file-name {
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+        .custom-file-upload {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-form {
+            display: flex;
+            align-items: center;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .logout-btn {
+            background-color: #f44336;
+        }
+        .logout-btn:hover {
+            background-color: #d32f2f;
+        }
+        .image-preview {
+            max-height: 200px;
+            max-width: 100%;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Welcome {{ user.full_name }}</h1>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+    
+    <div class="container">
+        <div class="upload-section">
+            <h2>Upload New File</h2>
+            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+                <label for="file-upload" class="custom-file-upload">
+                    <i class="fa fa-cloud-upload"></i> Choose File
+                </label>
+                <input id="file-upload" type="file" name="file" onchange="previewFile(this)"/>
+                <button type="submit">Upload</button>
+            </form>
+            <img id="preview" class="image-preview" alt="File preview">
+        </div>
+        
+        <div class="files-section">
+            <h2>Uploaded Files</h2>
+            <div class="file-list">
+                {% for file in files %}
+                <div class="file-item">
+                    {% if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')) %}
+                    <a href="/uploads/{{ file }}" target="_blank">
+                        <img src="/uploads/{{ file }}" alt="{{ file }}">
+                    </a>
+                    {% elif file.lower().endswith(('.mp4', '.webm', '.ogg')) %}
+                    <a href="/uploads/{{ file }}" target="_blank">
+                        <video width="100%" height="auto" controls>
+                            <source src="/uploads/{{ file }}" type="video/{{ file.split('.')[-1] }}">
+                            Your browser does not support the video tag.
+                        </video>
+                    </a>
+                    {% else %}
+                    <a href="/uploads/{{ file }}" target="_blank">
+                        <div style="background-color: #f8f8f8; padding: 2rem 0;">File: {{ file }}</div>
+                    </a>
+                    {% endif %}
+                    <div class="file-name">{{ file }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if token exists on page load
+        window.onload = function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/';
+            }
+            
+            // Attach token to all requests
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                options.headers = options.headers || {};
+                if (token && !options.headers['Authorization']) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+                return originalFetch(url, options);
+            };
+        };
+        
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        }
+        
+        function previewFile(input) {
+            const preview = document.getElementById('preview');
+            const file = input.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (file.type.startsWith('image/')) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    } else {
+                        preview.style.display = 'none';
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
+</body>
+</html>

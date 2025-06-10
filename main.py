@@ -1,10 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
 from passlib.context import CryptContext
 import jwt
 from datetime import datetime, timedelta
+import os
+import shutil
 
 # Secret key for JWT (in production, use env var or config)
 SECRET_KEY = "your-secret-key"
@@ -12,6 +17,12 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 app = FastAPI()
+
+# Setup static files and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+templates = Jinja2Templates(directory="templates")
+os.makedirs("uploads", exist_ok=True)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -103,3 +114,20 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 @app.get("/users/me", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+# Frontend routes
+@app.get("/", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request, user: User = Depends(get_current_active_user)):
+    files = os.listdir("uploads")
+    return templates.TemplateResponse("admin.html", {"request": request, "files": files, "user": user})
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...), user: User = Depends(get_current_active_user)):
+    file_path = os.path.join("uploads", file.filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return RedirectResponse(url="/admin", status_code=303)
