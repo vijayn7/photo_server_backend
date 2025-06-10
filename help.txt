@@ -1,0 +1,8 @@
+Spin up VM:
+
+python3 -m venv venv
+source venv/bin/activate
+
+Get REST-API Server logs:
+
+journalctl -u photo-api -f
