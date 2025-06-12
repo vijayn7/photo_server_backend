@@ -1,9 +1,16 @@
 #!/bin/bash
 
-cd /home/pi/photo-server  # change to your actual project path
+echo "[DEPLOY] Pulling latest code..." >> /home/vnannapu/deploy.log
 
-echo "Pulling latest code from GitHub..."
-git pull origin main
+cd /home/vnannapu/photo-server || exit 1
 
-echo "Restarting the FastAPI server..."
-sudo systemctl restart photo-server
+# Pull the latest code
+git pull origin main >> /home/vnannapu/deploy.log 2>&1
+
+# (Optional) Install dependencies
+# pip install -r requirements.txt >> /home/vnannapu/deploy.log 2>&1
+
+# Restart the FastAPI server (assuming it's run by systemd)
+echo "[DEPLOY] Restarting FastAPI service..." >> /home/vnannapu/deploy.log
+sudo systemctl restart fastapi.service
+
