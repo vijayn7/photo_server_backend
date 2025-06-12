@@ -11,3 +11,8 @@ Check status:
 
 sudo systemctl status photo-server.service
 sudo systemctl status webhook.service
+
+Webhook logs:
+
+sudo journalctl -u webhook -f
+
