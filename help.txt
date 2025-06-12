@@ -6,3 +6,8 @@ source venv/bin/activate
 Get REST-API Server logs:
 
 journalctl -u photo-api -f
+
+Check status:
+
+sudo systemctl status photo-server.service
+sudo systemctl status webhook.service
