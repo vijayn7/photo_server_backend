@@ -16,3 +16,7 @@ Webhook logs:
 
 sudo journalctl -u webhook -f
 
+See all processes that are LISTEN:
+
+lsof -i -P | grep LISTEN
+

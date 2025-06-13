@@ -1,0 +1,12 @@
+[Unit]
+Description=FastAPI Photo Server
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/photo-server
+ExecStart=/home/pi/.local/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

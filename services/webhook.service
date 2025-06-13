@@ -1,0 +1,14 @@
+[Unit]
+Description=Photo Server Webhook API
+After=network.target
+
+[Service]
+User=vnannapu
+WorkingDirectory=/home/vnannapu/photo-server
+ExecStart=/home/vnannapu/photo-server/venv/bin/uvicorn webhook_server:app --host 0.0.0.0 --port 9011
+Restart=always
+RestartSec=3
+Environment="PATH=/home/vnannapu/photo-server/venv/bin"
+
+[Install]
+WantedBy=multi-user.target
