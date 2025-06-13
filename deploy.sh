@@ -1,4 +1,6 @@
 #!/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
 
 echo "[DEPLOY] Pulling latest code..." >> /home/vnannapu/deploy.log
 

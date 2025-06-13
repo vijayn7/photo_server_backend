@@ -1,4 +1,6 @@
 #!/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
 
 # ANSI color codes
 GREEN='\033[0;32m'
