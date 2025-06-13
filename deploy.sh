@@ -9,6 +9,10 @@ cd /home/vnannapu/photo-server || exit 1
 # Pull the latest code
 git pull origin main >> /home/vnannapu/deploy.log 2>&1
 
+# Use a python virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
 # Install dependencies
 pip install -r requirements.txt >> /home/vnannapu/deploy.log 2>&1
 
