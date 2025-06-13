@@ -37,31 +37,31 @@ sudo nginx -t
 # Check if the test was successful
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}Configuration test successful.${NC}"
-  
-  echo -e "${YELLOW}Reloading Nginx...${NC}"
-  sudo systemctl reload nginx
-  
+
+  echo -e "${YELLOW}Reloading Photo-Server...${NC}"
+  sudo systemctl reload photo-server.service
+
   # Check if reload was successful
   if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Nginx reloaded successfully!${NC}"
-    
-    # Optional: Check if Nginx is running
-    if systemctl is-active --quiet nginx; then
-      echo -e "${GREEN}Nginx is running.${NC}"
+    echo -e "${GREEN}Photo-Server reloaded successfully!${NC}"
+
+    # Optional: Check if Photo-Server is running
+    if systemctl is-active --quiet photo-server.service; then
+      echo -e "${GREEN}Photo-Server is running.${NC}"
     else
-      echo -e "${RED}Warning: Nginx is not running!${NC}"
-      echo -e "${YELLOW}Attempting to start Nginx...${NC}"
-      sudo systemctl start nginx
+      echo -e "${RED}Warning: Photo-Server is not running!${NC}"
+      echo -e "${YELLOW}Attempting to start Photo-Server...${NC}"
+      sudo systemctl start photo-server.service
     fi
     
   else
-    echo -e "${RED}Failed to reload Nginx. Please check the error messages above.${NC}"
+    echo -e "${RED}Failed to reload Photo-Server. Please check the error messages above.${NC}"
   fi
   
 else
   echo -e "${RED}Configuration test failed. Please fix the errors before reloading.${NC}"
 fi
 
-# Display current Nginx status
-echo -e "${YELLOW}Current Nginx status:${NC}"
-sudo systemctl status nginx --no-pager | head -n 5
+# Display current Photo-Server status
+echo -e "${YELLOW}Current Photo-Server status:${NC}"
+sudo systemctl status photo-server.service --no-pager | head -n 5
