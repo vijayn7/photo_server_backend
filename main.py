@@ -11,6 +11,7 @@ import jwt
 from datetime import datetime, timedelta
 import os
 import shutil
+from python import db_utils
 
 # Secret key for JWT (in production, use env var or config)
 SECRET_KEY = "your-secret-key"
@@ -34,22 +35,11 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 templates = Jinja2Templates(directory="templates")
 os.makedirs("uploads", exist_ok=True)
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use the password hashing context from db_utils
+pwd_context = db_utils.pwd_context
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-# Fake user "database"
-fake_users_db = {
-    "alice": {
-        "username": "alice",
-        "full_name": "Alice Smith",
-        "email": "alice@example.com",
-        "hashed_password": pwd_context.hash("secret"),
-        "disabled": False,
-    }
-}
 
 class User(BaseModel):
     username: str
@@ -64,21 +54,17 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
+def get_user(username: str):
+    user_dict = db_utils.get_user(username)
+    if user_dict:
         return UserInDB(**user_dict)
+    return None
 
-def authenticate_user(db, username: str, password: str):
-    user = get_user(db, username)
-    if not user:
+def authenticate_user(username: str, password: str):
+    user_dict = db_utils.authenticate_user(username, password)
+    if not user_dict:
         return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
+    return UserInDB(**user_dict)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -100,7 +86,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception
-    user = get_user(fake_users_db, username)
+    user = get_user(username)
     if user is None:
         raise credentials_exception
     return user
@@ -112,7 +98,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    user = authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -145,10 +131,17 @@ async def admin_page(request: Request, token: str = None):
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             username = payload.get("sub")
             if username:
-                user = get_user(fake_users_db, username)
+                user = get_user(username)
                 if user and not user.disabled:
                     files = os.listdir("uploads")
-                    return templates.TemplateResponse("admin.html", {"request": request, "files": files, "user": user})
+                    # Load all users to display in the admin panel
+                    all_users = db_utils.load_users()
+                    return templates.TemplateResponse("admin.html", {
+                        "request": request, 
+                        "files": files, 
+                        "user": user,
+                        "users": all_users
+                    })
         except jwt.PyJWTError:
             pass
     
@@ -182,7 +175,7 @@ async def upload_file(
         if not username:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        user = get_user(fake_users_db, username)
+        user = get_user(username)
         if not user or user.disabled:
             raise HTTPException(status_code=401, detail="Invalid user")
             
@@ -200,3 +193,35 @@ async def upload_file(
         
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token signature")
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    return templates.TemplateResponse("register.html", {"request": request})
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    full_name: str
+    password: str
+
+@app.post("/register")
+async def register_user(user_data: UserCreate):
+    success = db_utils.create_user(
+        username=user_data.username,
+        email=user_data.email,
+        full_name=user_data.full_name,
+        password=user_data.password
+    )
+    
+    if not success:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    # Return success message
+    return {"message": "User created successfully"}
+
+# Add route to get all users (for admin purposes only)
+@app.get("/users")
+async def get_all_users(current_user: User = Depends(get_current_active_user)):
+    # Only admin-level users should access this endpoint in production
+    users = db_utils.load_users()
+    return users

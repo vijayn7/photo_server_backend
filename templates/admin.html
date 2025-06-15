@@ -105,6 +105,34 @@
             margin-top: 10px;
             display: none;
         }
+        
+        /* Users table styles */
+        #users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        #users-table th, #users-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        #users-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        #users-table th {
+            padding-top: 12px;
+            padding-bottom: 12px;
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        #users-table tr:hover {
+            background-color: #ddd;
+        }
     </style>
 </head>
 <body>
@@ -151,6 +179,31 @@
                 </div>
                 {% endfor %}
             </div>
+        </div>
+        
+        <div class="files-section" style="margin-top: 2rem;">
+            <h2>Registered Users</h2>
+            <input type="text" id="userSearchInput" placeholder="Search users..." style="padding: 8px; margin-bottom: 10px; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
+            <table id="users-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for username, user_info in users.items() %}
+                    <tr>
+                        <td>{{ username }}</td>
+                        <td>{{ user_info.full_name }}</td>
+                        <td>{{ user_info.email }}</td>
+                        <td>{% if user_info.disabled %}Disabled{% else %}Active{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -242,6 +295,32 @@
                 reader.readAsDataURL(file);
             }
         }
+        
+        // User search functionality
+        document.getElementById('userSearchInput').addEventListener('keyup', function() {
+            const searchText = this.value.toLowerCase();
+            const table = document.getElementById('users-table');
+            const rows = table.getElementsByTagName('tr');
+            
+            // Start from index 1 to skip the header row
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.getElementsByTagName('td');
+                let shouldShow = false;
+                
+                // Check all cells in the row
+                for (let j = 0; j < cells.length; j++) {
+                    const cellText = cells[j].textContent.toLowerCase();
+                    if (cellText.indexOf(searchText) > -1) {
+                        shouldShow = true;
+                        break;
+                    }
+                }
+                
+                // Show or hide the row based on the search
+                row.style.display = shouldShow ? '' : 'none';
+            }
+        });
     </script>
 </body>
 </html>
