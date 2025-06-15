@@ -110,8 +110,24 @@
                 
                 if (response.ok) {
                     console.log("Login successful, storing token and redirecting");
-                    localStorage.setItem("token", result.access_token);
-                    window.location.href = "/admin";
+                    const token = result.access_token;
+                    localStorage.setItem("token", token);
+                    
+                    // Create a form to submit with the token to properly authenticate the redirect
+                    const form = document.createElement('form');
+                    form.method = 'GET';
+                    form.action = '/admin';
+                    
+                    // Add the token as a hidden field
+                    const tokenField = document.createElement('input');
+                    tokenField.type = 'hidden';
+                    tokenField.name = 'token';
+                    tokenField.value = token;
+                    form.appendChild(tokenField);
+                    
+                    // Add the form to the document and submit it
+                    document.body.appendChild(form);
+                    form.submit();
                 } else {
                     console.error("Login failed with status:", response.status, "Error:", result);
                     alert("Login failed: " + (result.detail || JSON.stringify(result)));

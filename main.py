@@ -131,9 +131,29 @@ async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_page(request: Request, user: User = Depends(get_current_active_user)):
-    files = os.listdir("uploads")
-    return templates.TemplateResponse("admin.html", {"request": request, "files": files, "user": user})
+async def admin_page(request: Request, token: str = None):
+    # First, check if token was provided in query parameters (from form submission)
+    if token is None:
+        # Check if token is in the Authorization header (from fetch with Bearer token)
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[1]
+    
+    if token:
+        try:
+            # Verify the token manually
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username = payload.get("sub")
+            if username:
+                user = get_user(fake_users_db, username)
+                if user and not user.disabled:
+                    files = os.listdir("uploads")
+                    return templates.TemplateResponse("admin.html", {"request": request, "files": files, "user": user})
+        except jwt.PyJWTError:
+            pass
+    
+    # If we get here, authentication failed
+    return RedirectResponse(url="/", status_code=303)
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), user: User = Depends(get_current_active_user)):
