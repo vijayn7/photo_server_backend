@@ -45,12 +45,13 @@ sudo nginx -t
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}Configuration test successful.${NC}"
 
-  echo -e "${YELLOW}Reloading Photo-Server...${NC}"
-  sudo systemctl reload photo-server.service
+  echo -e "${YELLOW}Restarting Photo-Server...${NC}"
+  sudo systemctl daemon-reload
+  sudo systemctl restart photo-server.service
 
-  # Check if reload was successful
+  # Check if Restart was successful
   if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Photo-Server reloaded successfully!${NC}"
+    echo -e "${GREEN}Photo-Server Restarted successfully!${NC}"
 
     # Optional: Check if Photo-Server is running
     if systemctl is-active --quiet photo-server.service; then
@@ -62,11 +63,11 @@ if [ $? -eq 0 ]; then
     fi
     
   else
-    echo -e "${RED}Failed to reload Photo-Server. Please check the error messages above.${NC}"
+    echo -e "${RED}Failed to Restart Photo-Server. Please check the error messages above.${NC}"
   fi
   
 else
-  echo -e "${RED}Configuration test failed. Please fix the errors before reloading.${NC}"
+  echo -e "${RED}Configuration test failed. Please fix the errors before Restarting.${NC}"
 fi
 
 # Display current Photo-Server status
