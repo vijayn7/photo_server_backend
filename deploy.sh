@@ -29,7 +29,7 @@ sudo systemctl restart photo-api.service
 # Test and reload Nginx configuration
 echo "[DEPLOY] Testing and reloading Nginx configuration..." >> /home/vnannapu/deploy.log
 
-bash /scripts/nginx-reload.sh >> /home/vnannapu/deploy.log 2>&1
+bash ~/photo-server/scripts/nginx-reload.sh >> /home/vnannapu/deploy.log 2>&1
 if [ $? -eq 0 ]; then
   echo "[DEPLOY] Deployment completed successfully." >> /home/vnannapu/deploy.log
 else
