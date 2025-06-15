@@ -17,6 +17,14 @@ echo -e "${YELLOW}Copying Config from Repo to Available Sites...${NC}"
 sudo rm -f "$AVAILABLE_PATH"  # Remove any existing file
 sudo cp "$INITIAL_PATH" "$AVAILABLE_PATH"
 
+#check if the copy was successful
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}Configuration copied successfully to $AVAILABLE_PATH.${NC}"
+else
+  echo -e "${RED}Failed to copy configuration. Please check the file path and permissions.${NC}"
+  exit 1
+fi
+
 echo -e "${YELLOW}Ensuring symbolic link exists...${NC}"
 
 # Check if the symbolic link exists
