@@ -1,17 +1,18 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from passlib.context import CryptContext
 import jwt
 from datetime import datetime, timedelta
 import os
 import shutil
 from python import db_utils
+from python import photo_utils
 
 # Secret key for JWT (in production, use env var or config)
 SECRET_KEY = "your-secret-key"
@@ -133,7 +134,8 @@ async def admin_page(request: Request, token: str = None):
             if username:
                 user = get_user(username)
                 if user and not user.disabled:
-                    files = os.listdir("uploads")
+                    # Get files with metadata using the photo_utils module
+                    files = photo_utils.get_all_files()
                     # Load all users to display in the admin panel
                     all_users = db_utils.load_users()
                     return templates.TemplateResponse("admin.html", {
@@ -179,14 +181,12 @@ async def upload_file(
         if not user or user.disabled:
             raise HTTPException(status_code=401, detail="Invalid user")
             
-        # User is authenticated, process the file upload
-        file_path = os.path.join("uploads", file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # User is authenticated, process the file upload using photo_utils
+        file_metadata = photo_utils.save_uploaded_file(file.file, file.filename, username)
         
         # For AJAX requests, return a JSON response
         if "application/json" in request.headers.get("Accept", ""):
-            return {"success": True, "filename": file.filename}
+            return {"success": True, "filename": file_metadata["filename"], "metadata": file_metadata}
         
         # For traditional form submissions, redirect
         return RedirectResponse(url="/admin", status_code=303)
@@ -225,3 +225,44 @@ async def get_all_users(current_user: User = Depends(get_current_active_user)):
     # Only admin-level users should access this endpoint in production
     users = db_utils.load_users()
     return users
+
+@app.get("/photos", response_model=List[Dict[str, Any]])
+async def get_photos(current_user: User = Depends(get_current_active_user)):
+    """
+    Get all photos for the current user or all photos for admin
+    """
+    username = current_user.username
+    # ToDo: Check if user is admin and return all photos if admin
+    return photo_utils.get_all_files(username)
+
+@app.get("/photos/{filename}")
+async def get_photo_info(
+    filename: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get information about a specific photo
+    """
+    photo_info = photo_utils.get_file_info(filename)
+    if not photo_info:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    
+    # Check if user has permission to view this photo
+    # For now, any authenticated user can see any photo
+    return photo_info
+
+@app.delete("/photos/{filename}")
+async def delete_photo(
+    filename: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete a photo
+    """
+    username = current_user.username
+    # ToDo: Check if user is admin and allow deletion of any photo
+    success = photo_utils.delete_file(filename, username)
+    if not success:
+        raise HTTPException(status_code=404, detail="Photo not found or permission denied")
+    
+    return {"message": "Photo deleted successfully"}

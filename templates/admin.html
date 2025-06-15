@@ -65,6 +65,27 @@
         .file-name {
             font-size: 0.9rem;
             word-break: break-all;
+            margin-bottom: 4px;
+        }
+        .file-meta {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: left;
+            margin-top: 5px;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 3px 5px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-top: 5px;
+            float: right;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
         }
         .custom-file-upload {
             border: 1px solid #ccc;
@@ -156,26 +177,32 @@
         
         <div class="files-section">
             <h2>Uploaded Files</h2>
+            <input type="text" id="fileSearchInput" placeholder="Search files..." style="padding: 8px; margin-bottom: 10px; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
             <div class="file-list">
                 {% for file in files %}
                 <div class="file-item">
-                    {% if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')) %}
-                    <a href="/uploads/{{ file }}" target="_blank">
-                        <img src="/uploads/{{ file }}" alt="{{ file }}">
+                    {% if file.file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] %}
+                    <a href="/uploads/{{ file.filename }}" target="_blank">
+                        <img src="/uploads/{{ file.filename }}" alt="{{ file.filename }}">
                     </a>
-                    {% elif file.lower().endswith(('.mp4', '.webm', '.ogg')) %}
-                    <a href="/uploads/{{ file }}" target="_blank">
+                    {% elif file.file_type in ['mp4', 'webm', 'ogg', 'mov', 'avi'] %}
+                    <a href="/uploads/{{ file.filename }}" target="_blank">
                         <video width="100%" height="auto" controls>
-                            <source src="/uploads/{{ file }}" type="video/{{ file.split('.')[-1] }}">
+                            <source src="/uploads/{{ file.filename }}" type="video/{{ file.file_type }}">
                             Your browser does not support the video tag.
                         </video>
                     </a>
                     {% else %}
-                    <a href="/uploads/{{ file }}" target="_blank">
-                        <div style="background-color: #f8f8f8; padding: 2rem 0;">File: {{ file }}</div>
+                    <a href="/uploads/{{ file.filename }}" target="_blank">
+                        <div style="background-color: #f8f8f8; padding: 2rem 0;">File: {{ file.filename }}</div>
                     </a>
                     {% endif %}
-                    <div class="file-name">{{ file }}</div>
+                    <div class="file-name">{{ file.filename }}</div>
+                    <div class="file-meta">
+                        <small>Uploaded by: {{ file.uploaded_by }}</small><br>
+                        <small>{{ file.upload_date.split('T')[0] }}</small>
+                        <button class="delete-btn" onclick="deleteFile('{{ file.filename }}')">Delete</button>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -321,6 +348,64 @@
                 row.style.display = shouldShow ? '' : 'none';
             }
         });
+        
+        // File search functionality
+        document.getElementById('fileSearchInput').addEventListener('keyup', function() {
+            const searchText = this.value.toLowerCase();
+            const fileList = document.querySelector('.file-list');
+            const fileItems = fileList.querySelectorAll('.file-item');
+            
+            fileItems.forEach(item => {
+                const fileName = item.querySelector('.file-name').textContent.toLowerCase();
+                const fileMeta = item.querySelector('.file-meta').textContent.toLowerCase();
+                
+                if (fileName.includes(searchText) || fileMeta.includes(searchText)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+        
+        // Delete file functionality
+        async function deleteFile(filename) {
+            if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Authentication token not found. Please log in again.');
+                window.location.href = '/';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/photos/${filename}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    // Remove the file item from the UI
+                    const fileItems = document.querySelectorAll('.file-item');
+                    fileItems.forEach(item => {
+                        const itemFilename = item.querySelector('.file-name').textContent;
+                        if (itemFilename === filename) {
+                            item.remove();
+                        }
+                    });
+                } else {
+                    const result = await response.json();
+                    alert('Delete failed: ' + (result.detail || JSON.stringify(result)));
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('An error occurred while deleting the file: ' + error);
+            }
+        }
     </script>
 </body>
 </html>
