@@ -116,12 +116,12 @@
     <div class="container">
         <div class="upload-section">
             <h2>Upload New File</h2>
-            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+            <form id="uploadForm" class="upload-form">
                 <label for="file-upload" class="custom-file-upload">
                     <i class="fa fa-cloud-upload"></i> Choose File
                 </label>
                 <input id="file-upload" type="file" name="file" onchange="previewFile(this)"/>
-                <button type="submit">Upload</button>
+                <button type="button" onclick="uploadFile()">Upload</button>
             </form>
             <img id="preview" class="image-preview" alt="File preview">
         </div>
@@ -176,6 +176,53 @@
         function logout() {
             localStorage.removeItem('token');
             window.location.href = '/';
+        }
+        
+        async function uploadFile() {
+            const fileInput = document.getElementById('file-upload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Authentication token not found. Please log in again.');
+                window.location.href = '/';
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                        // Don't set Content-Type here, let the browser set it with the boundary parameter
+                    }
+                });
+                
+                if (response.ok) {
+                    // Reload page to show the newly uploaded file
+                    window.location.reload();
+                } else {
+                    const result = await response.text();
+                    try {
+                        const jsonResult = JSON.parse(result);
+                        alert('Upload failed: ' + (jsonResult.detail || JSON.stringify(jsonResult)));
+                    } catch {
+                        alert('Upload failed: ' + result);
+                    }
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('An error occurred during upload: ' + error);
+            }
         }
         
         function previewFile(input) {

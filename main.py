@@ -156,8 +156,47 @@ async def admin_page(request: Request, token: str = None):
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), user: User = Depends(get_current_active_user)):
-    file_path = os.path.join("uploads", file.filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    return RedirectResponse(url="/admin", status_code=303)
+async def upload_file(
+    request: Request,
+    file: UploadFile = File(...),
+    token: str = None
+):
+    # First, check if token was provided in query parameters
+    if token is None:
+        # Check if token is in the Authorization header
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[1]
+    
+    # Authenticate using token
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        user = get_user(fake_users_db, username)
+        if not user or user.disabled:
+            raise HTTPException(status_code=401, detail="Invalid user")
+            
+        # User is authenticated, process the file upload
+        file_path = os.path.join("uploads", file.filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # For AJAX requests, return a JSON response
+        if "application/json" in request.headers.get("Accept", ""):
+            return {"success": True, "filename": file.filename}
+        
+        # For traditional form submissions, redirect
+        return RedirectResponse(url="/admin", status_code=303)
+        
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token signature")
