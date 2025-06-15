@@ -9,12 +9,11 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration paths
-AVAILABLE_PATH="/etc/nginx/sites-available"
+AVAILABLE_PATH="/etc/nginx/sites-available/default"
 ENABLED_PATH="/etc/nginx/sites-enabled/default"
-INITIAL_PATH="~/photo-server/sites_available/default"
+INITIAL_PATH="/home/vnannapu/photo-server/sites_available/default"
 
 echo -e "${YELLOW}Copying Config from Repo to Available Sites...${NC}"
-sudo rm -f "$AVAILABLE_PATH"  # Remove any existing file
 sudo cp "$INITIAL_PATH" "$AVAILABLE_PATH"
 
 #check if the copy was successful
