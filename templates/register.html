@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register - Photo Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+        .register-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 1.5rem;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error-message {
+            color: #d32f2f;
+            margin-bottom: 1rem;
+            font-size: 14px;
+            display: none;
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 1rem;
+        }
+        .login-link a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        .form-group {
+            margin-bottom: 0.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h1>Create an Account</h1>
+        <div id="errorMessage" class="error-message"></div>
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required />
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required />
+            </div>
+            
+            <div class="form-group">
+                <label for="full_name">Full Name</label>
+                <input type="text" id="full_name" name="full_name" required />
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required />
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required />
+            </div>
+            
+            <button type="submit">Register</button>
+        </form>
+        <div class="login-link">
+            Already have an account? <a href="/">Login</a>
+        </div>
+    </div>
+
+    <script>
+        // Email validation helper
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        document.getElementById("registerForm").onsubmit = async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const errorMessage = document.getElementById("errorMessage");
+            
+            // Reset previous error messages
+            errorMessage.style.display = "none";
+            errorMessage.textContent = "";
+            
+            // Form validation
+            const username = form.username.value.trim();
+            const email = form.email.value.trim();
+            const fullName = form.full_name.value.trim();
+            const password = form.password.value;
+            const confirmPassword = form.confirmPassword.value;
+            
+            // Validation checks
+            if (username.length < 3) {
+                errorMessage.textContent = "Username must be at least 3 characters long";
+                errorMessage.style.display = "block";
+                return;
+            }
+            
+            if (!isValidEmail(email)) {
+                errorMessage.textContent = "Please enter a valid email address";
+                errorMessage.style.display = "block";
+                return;
+            }
+            
+            if (fullName.length < 2) {
+                errorMessage.textContent = "Please enter your full name";
+                errorMessage.style.display = "block";
+                return;
+            }
+            
+            if (password.length < 6) {
+                errorMessage.textContent = "Password must be at least 6 characters long";
+                errorMessage.style.display = "block";
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                errorMessage.textContent = "Passwords do not match";
+                errorMessage.style.display = "block";
+                return;
+            }
+            
+            try {
+                console.log("Attempting registration for:", username);
+                
+                const response = await fetch("/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        email: email,
+                        full_name: fullName,
+                        password: password
+                    })
+                });
+                
+                console.log("Response status:", response.status);
+                
+                // Get the raw text first to debug potential JSON parsing issues
+                const responseText = await response.text();
+                console.log("Raw response:", responseText);
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                    console.log("Parsed response data:", result);
+                } catch (parseError) {
+                    console.error("Failed to parse response as JSON:", parseError);
+                    alert("Server response was not valid JSON. See console for details.");
+                    return;
+                }
+                
+                if (response.ok) {
+                    // Registration successful
+                    alert("Registration successful! Please log in.");
+                    window.location.href = "/";
+                } else {
+                    // Registration failed
+                    errorMessage.textContent = result.detail || "Registration failed. Please try again.";
+                    errorMessage.style.display = "block";
+                }
+            } catch (error) {
+                console.error("Registration error:", error);
+                errorMessage.textContent = "An error occurred. Please try again later.";
+                errorMessage.style.display = "block";
+            }
+        };
+    </script>
+</body>
+</html>

@@ -11,11 +11,15 @@ import jwt
 from datetime import datetime, timedelta
 import os
 import shutil
+import json
 
 # Secret key for JWT (in production, use env var or config)
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Path to users JSON file
+USERS_FILE = "users.json"
 
 app = FastAPI()
 
@@ -40,16 +44,31 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Fake user "database"
-fake_users_db = {
-    "alice": {
-        "username": "alice",
-        "full_name": "Alice Smith",
-        "email": "alice@example.com",
-        "hashed_password": pwd_context.hash("secret"),
-        "disabled": False,
-    }
-}
+# User database functions
+def load_users():
+    """Load users from JSON file or return default if file doesn't exist"""
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        # Return a default user if file doesn't exist or is invalid
+        return {
+            "alice": {
+                "username": "alice",
+                "full_name": "Alice Smith",
+                "email": "alice@example.com",
+                "hashed_password": pwd_context.hash("secret"),
+                "disabled": False,
+            }
+        }
+
+def save_users(users_db):
+    """Save users to JSON file"""
+    with open(USERS_FILE, "w") as f:
+        json.dump(users_db, f, indent=4)
+
+# Load users on startup
+users_db = load_users()
 
 class User(BaseModel):
     username: str
@@ -72,8 +91,10 @@ def get_user(db, username: str):
         user_dict = db[username]
         return UserInDB(**user_dict)
 
-def authenticate_user(db, username: str, password: str):
-    user = get_user(db, username)
+def authenticate_user(username: str, password: str):
+    # Load latest user data
+    users = load_users()
+    user = get_user(users, username)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -100,7 +121,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception
-    user = get_user(fake_users_db, username)
+    
+    # Load latest user data
+    users = load_users()
+    user = get_user(users, username)
     if user is None:
         raise credentials_exception
     return user
@@ -112,7 +136,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    user = authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -125,10 +149,50 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
+# User registration
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    full_name: str
+    password: str
+
+@app.post("/register")
+async def register_user(user: UserCreate):
+    # Load latest user data
+    users = load_users()
+    
+    # Check if username already exists
+    if user.username in users:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered"
+        )
+    
+    # Hash the password
+    hashed_password = pwd_context.hash(user.password)
+    
+    # Add the new user to the database
+    users[user.username] = {
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "hashed_password": hashed_password,
+        "disabled": False,
+    }
+    
+    # Save updated user database
+    save_users(users)
+    
+    return {"message": "User created successfully"}
+
 # Frontend routes
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    return templates.TemplateResponse("register.html", {"request": request})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, token: str = None):
@@ -145,7 +209,9 @@ async def admin_page(request: Request, token: str = None):
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             username = payload.get("sub")
             if username:
-                user = get_user(fake_users_db, username)
+                # Load latest user data
+                users = load_users()
+                user = get_user(users, username)
                 if user and not user.disabled:
                     files = os.listdir("uploads")
                     return templates.TemplateResponse("admin.html", {"request": request, "files": files, "user": user})
@@ -182,7 +248,9 @@ async def upload_file(
         if not username:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        user = get_user(fake_users_db, username)
+        # Load latest user data
+        users = load_users()
+        user = get_user(users, username)
         if not user or user.disabled:
             raise HTTPException(status_code=401, detail="Invalid user")
             
