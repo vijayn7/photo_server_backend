@@ -9,7 +9,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration paths
-AVAILABLE_PATH="/etc/nginx/sites-available/default"
+AVAILABLE_PATH="/etc/nginx/sites-available"
 ENABLED_PATH="/etc/nginx/sites-enabled/default"
 INITIAL_PATH="~/photo-server/sites_available/default"
 
