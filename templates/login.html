@@ -63,28 +63,57 @@
         document.getElementById("loginForm").onsubmit = async (e) => {
             e.preventDefault();
             const form = e.target;
-            const data = new URLSearchParams();
-            data.append("username", form.username.value);
-            data.append("password", form.password.value);
+            
+            // OAuth2 requires these exact field names: username and password
+            const formData = new URLSearchParams();
+            formData.append("username", form.username.value);
+            formData.append("password", form.password.value);
+            
+            // Additional parameters required by some OAuth2 implementations (grant_type)
+            // This matches the expected OAuth2PasswordRequestForm in FastAPI
+            formData.append("grant_type", "password");
 
             try {
                 console.log("Attempting login with username:", form.username.value);
+                
+                // Log the exact data being sent
+                console.log("Sending data:", {
+                    username: form.username.value,
+                    password: form.password.value.replace(/./g, '*'), // Hide actual password in logs
+                    grant_type: "password"
+                });
+                
                 const response = await fetch("/token", {
                     method: "POST",
-                    body: data,
+                    body: formData,
                     headers: { 
                         "Content-Type": "application/x-www-form-urlencoded" 
                     }
                 });
 
                 console.log("Response status:", response.status);
-                const result = await response.json();
-                console.log("Response data:", result);
+                console.log("Response headers:", Object.fromEntries([...response.headers]));
+                
+                // Get the raw text first to debug potential JSON parsing issues
+                const responseText = await response.text();
+                console.log("Raw response:", responseText);
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                    console.log("Parsed response data:", result);
+                } catch (parseError) {
+                    console.error("Failed to parse response as JSON:", parseError);
+                    alert("Server response was not valid JSON. See console for details.");
+                    return;
+                }
                 
                 if (response.ok) {
+                    console.log("Login successful, storing token and redirecting");
                     localStorage.setItem("token", result.access_token);
                     window.location.href = "/admin";
                 } else {
+                    console.error("Login failed with status:", response.status, "Error:", result);
                     alert("Login failed: " + (result.detail || JSON.stringify(result)));
                 }
             } catch (error) {
