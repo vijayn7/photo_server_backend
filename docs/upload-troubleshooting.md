@@ -46,7 +46,7 @@ sudo nano /etc/systemd/system/photo-server.service
 
 Ensure it includes the large file upload settings:
 ```
-ExecStart=/home/vnannapu/photo-server/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --limit-max-body-size 10737418240 --timeout-keep-alive 600
+ExecStart=/home/vnannapu/photo-server/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 600
 ```
 
 ### Reload and restart the service:
