@@ -393,8 +393,15 @@
                     progressContainer.style.display = 'none';
                 });
                 
-                // Open and send request
+                // Handle timeout
+                xhr.addEventListener('timeout', () => {
+                    alert('Upload timed out. The file may be too large or your connection is too slow.');
+                    progressContainer.style.display = 'none';
+                });
+                
+                // Open and send request with extended timeout for large files
                 xhr.open('POST', '/upload');
+                xhr.timeout = 3600000; // 1 hour timeout for very large files
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
                 xhr.send(formData);
                 
