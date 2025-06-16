@@ -80,15 +80,30 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
         # Larger chunk size for better performance with large files
         chunk_size = 4 * 1024 * 1024  # 4MB chunks for better handling of large files
         bytes_written = 0
+        
+        # Check if we can read from the file object (this will fail if file is closed or invalid)
+        try:
+            # Try to get current position to verify file object is valid
+            current_pos = file_obj.tell()
+        except Exception as e:
+            print(f"Error accessing file object: {str(e)}")
+            raise IOError(f"Invalid file object: {str(e)}") from e
+        
         with open(file_path, "wb") as buffer:
             # Read and write in chunks to handle large files better
-            while chunk := file_obj.read(chunk_size):
-                buffer.write(chunk)
-                bytes_written += len(chunk)
+            try:
+                while chunk := file_obj.read(chunk_size):
+                    buffer.write(chunk)
+                    bytes_written += len(chunk)
+                    
+                    # Log progress for very large files
+                    if bytes_written % (100 * 1024 * 1024) == 0:  # Log every 100MB
+                        print(f"Upload progress for {filename}: {bytes_written / (1024 * 1024):.1f}MB written")
+            except Exception as chunk_error:
+                print(f"Error during chunk read/write: {str(chunk_error)}")
+                raise IOError(f"Upload failed during file transfer: {str(chunk_error)}") from chunk_error
                 
-                # Log progress for very large files
-                if bytes_written % (100 * 1024 * 1024) == 0:  # Log every 100MB
-                    print(f"Upload progress for {filename}: {bytes_written / (1024 * 1024):.1f}MB written")
+        print(f"Upload complete for {filename}: Total size {bytes_written / (1024 * 1024):.2f} MB")
         
         # Get file size
         file_size = os.path.getsize(file_path)
@@ -99,7 +114,14 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
         print(f"Error during file upload: {str(e)}")
         if os.path.exists(file_path):
             os.remove(file_path)
-        raise
+            print(f"Removed partial file: {file_path}")
+        
+        # Add more diagnostic information to the error
+        error_details = str(e)
+        if hasattr(file_obj, 'file'):
+            error_details += f" (File object type: {type(file_obj).__name__}, File attribute type: {type(file_obj.file).__name__})"
+        
+        raise IOError(f"File upload failed: {error_details}") from e
     
     # Update metadata
     metadata = load_metadata()

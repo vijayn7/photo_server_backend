@@ -32,13 +32,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Set maximum upload file size to 50 MB (adjust as needed)
-# Note: This is at the FastAPI level, but your web server might also have limits
+# Configure FastAPI to handle large file uploads
+# This is done at the application level, separate from the server settings
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 # Setup static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 templates = Jinja2Templates(directory="templates")
+
+# Create uploads directory if it doesn't exist
+os.makedirs("uploads", exist_ok=True)
 os.makedirs("uploads", exist_ok=True)
 
 # Use the password hashing context from db_utils
@@ -193,6 +197,20 @@ async def upload_file(
         # File size check will happen during the upload, not before
         # We'll catch any exceptions from photo_utils if the file is too large
         try:
+            # Diagnostic logging
+            print(f"Processing upload for file: {file.filename}, size: {file.size if hasattr(file, 'size') else 'unknown'}")
+            
+            # Make sure we have a file to process
+            if not file or not hasattr(file, 'file'):
+                raise ValueError("No file was provided or file object is invalid")
+            
+            # Get some file info for diagnostics
+            try:
+                file_position = file.file.tell()
+                print(f"File position before upload: {file_position}")
+            except Exception as pos_error:
+                print(f"Error checking file position: {str(pos_error)}")
+                
             # User is authenticated, process the file upload using photo_utils
             file_metadata = photo_utils.save_uploaded_file(file.file, file.filename, username)
             
@@ -202,12 +220,29 @@ async def upload_file(
             
             # For traditional form submissions, redirect
             return RedirectResponse(url="/admin", status_code=303)
-        except Exception as e:
-            # Handle upload errors
-            print(f"Upload error: {str(e)}")
+            
+        except IOError as io_error:
+            # Handle file IO errors
+            print(f"File IO error during upload: {str(io_error)}")
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File upload failed: {str(e)}. Maximum file size is 10GB."
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error processing file: {str(io_error)}"
+            )
+        except Exception as e:
+            # Handle other upload errors
+            print(f"Upload error: {str(e)}")
+            
+            # Determine the appropriate status code
+            if "too large" in str(e).lower():
+                status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+                detail = f"File too large: {str(e)}. Maximum file size is 10GB."
+            else:
+                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+                detail = f"Upload failed: {str(e)}"
+                
+            raise HTTPException(
+                status_code=status_code,
+                detail=detail
             )
             
     except jwt.PyJWTError:

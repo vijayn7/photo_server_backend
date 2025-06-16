@@ -358,7 +358,22 @@
                         // Error
                         try {
                             const response = JSON.parse(xhr.responseText);
-                            alert('Upload failed: ' + (response.detail || JSON.stringify(response)));
+                            let errorMessage = 'Upload failed: ' + (response.detail || JSON.stringify(response));
+                            
+                            // Add troubleshooting tips based on the error
+                            if (xhr.status === 413) {
+                                errorMessage += '\n\nThis may be due to server configuration limits. Try:\n' + 
+                                               '- Uploading a smaller file\n' + 
+                                               '- Breaking the file into smaller parts\n' +
+                                               '- Contacting the administrator to increase upload limits';
+                            } else if (xhr.status === 500) {
+                                errorMessage += '\n\nServer error occurred. Troubleshooting tips:\n' + 
+                                               '- Try a different file format\n' + 
+                                               '- Ensure the file is not corrupted\n' + 
+                                               '- Try again later';
+                            }
+                            
+                            alert(errorMessage);
                         } catch {
                             alert(`Upload failed with status ${xhr.status}: ${xhr.statusText}`);
                         }
