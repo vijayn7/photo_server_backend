@@ -87,6 +87,24 @@
         .delete-btn:hover {
             background-color: #d32f2f;
         }
+        .file-size-note {
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 10px;
+            text-align: center;
+        }
+        progress {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        progress::-webkit-progress-bar {
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        progress::-webkit-progress-value {
+            background-color: #4CAF50;
+            border-radius: 4px;
+        }
         .custom-file-upload {
             border: 1px solid #ccc;
             display: inline-block;
@@ -173,6 +191,11 @@
                 <button type="button" onclick="uploadFile()">Upload</button>
             </form>
             <img id="preview" class="image-preview" alt="File preview">
+            <div id="progress-container" style="display: none; margin-top: 15px;">
+                <progress id="upload-progress" max="100" value="0" style="width: 100%; height: 20px;"></progress>
+                <div id="progress-text" style="text-align: center; margin-top: 5px; font-size: 14px;">0%</div>
+            </div>
+            <p class="file-size-note">Maximum upload size: 10GB</p>
         </div>
         
         <div class="files-section">
@@ -261,9 +284,21 @@
         async function uploadFile() {
             const fileInput = document.getElementById('file-upload');
             const file = fileInput.files[0];
+            const progressElement = document.getElementById('upload-progress');
+            const progressContainer = document.getElementById('progress-container');
             
             if (!file) {
                 alert('Please select a file first');
+                return;
+            }
+            
+            // Check file size (client-side validation)
+            const maxSize = 10 * 1024 * 1024 * 1024; // 10GB
+            if (file.size > maxSize) {
+                const fileSize = file.size > 1024 * 1024 * 1024 
+                    ? `${(file.size / 1024 / 1024 / 1024).toFixed(2)} GB` 
+                    : `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+                alert(`File is too large. Maximum size is 10GB. Your file is ${fileSize}`);
                 return;
             }
             
@@ -275,33 +310,83 @@
             }
             
             try {
+                // Show progress bar
+                progressContainer.style.display = 'block';
+                progressElement.value = 0;
+                
                 const formData = new FormData();
                 formData.append('file', file);
                 
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                        // Don't set Content-Type here, let the browser set it with the boundary parameter
+                // Use XMLHttpRequest for upload progress tracking
+                const xhr = new XMLHttpRequest();
+                
+                // Track upload progress
+                xhr.upload.addEventListener('progress', (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = (event.loaded / event.total) * 100;
+                        progressElement.value = percentComplete;
+                        
+                        // Format sizes based on file size (GB for large files, MB for smaller ones)
+                        let loadedSize, totalSize;
+                        if (event.total > 1024 * 1024 * 1024) {
+                            // Display in GB for files over 1GB
+                            loadedSize = `${(event.loaded / 1024 / 1024 / 1024).toFixed(2)}GB`;
+                            totalSize = `${(event.total / 1024 / 1024 / 1024).toFixed(2)}GB`;
+                        } else {
+                            // Display in MB for smaller files
+                            loadedSize = `${(event.loaded / 1024 / 1024).toFixed(1)}MB`;
+                            totalSize = `${(event.total / 1024 / 1024).toFixed(1)}MB`;
+                        }
+                        
+                        document.getElementById('progress-text').textContent = 
+                            `${percentComplete.toFixed(1)}% (${loadedSize} / ${totalSize})`;
                     }
                 });
                 
-                if (response.ok) {
-                    // Reload page to show the newly uploaded file
-                    window.location.reload();
-                } else {
-                    const result = await response.text();
-                    try {
-                        const jsonResult = JSON.parse(result);
-                        alert('Upload failed: ' + (jsonResult.detail || JSON.stringify(jsonResult)));
-                    } catch {
-                        alert('Upload failed: ' + result);
+                // Upload complete
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        // Success
+                        progressElement.value = 100;
+                        document.getElementById('progress-text').textContent = 'Upload complete!';
+                        
+                        // Reload page after short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    } else {
+                        // Error
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            alert('Upload failed: ' + (response.detail || JSON.stringify(response)));
+                        } catch {
+                            alert(`Upload failed with status ${xhr.status}: ${xhr.statusText}`);
+                        }
+                        progressContainer.style.display = 'none';
                     }
-                }
+                });
+                
+                // Upload failed
+                xhr.addEventListener('error', () => {
+                    alert('Upload failed due to network error. Please try again.');
+                    progressContainer.style.display = 'none';
+                });
+                
+                // Upload aborted
+                xhr.addEventListener('abort', () => {
+                    alert('Upload was aborted.');
+                    progressContainer.style.display = 'none';
+                });
+                
+                // Open and send request
+                xhr.open('POST', '/upload');
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                xhr.send(formData);
+                
             } catch (error) {
                 console.error('Upload error:', error);
                 alert('An error occurred during upload: ' + error);
+                progressContainer.style.display = 'none';
             }
         }
         

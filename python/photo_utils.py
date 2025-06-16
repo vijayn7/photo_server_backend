@@ -71,13 +71,35 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{name}_{timestamp}{ext}"
     
-    # Save the file
+    # Save the file with proper error handling
     file_path = os.path.join(UPLOADS_DIR, filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file_obj, buffer)
-    
-    # Get file size
-    file_size = os.path.getsize(file_path)
+    try:
+        # Print some debug info
+        print(f"Starting upload of file: {filename} by user: {username}")
+        
+        # Larger chunk size for better performance with large files
+        chunk_size = 4 * 1024 * 1024  # 4MB chunks for better handling of large files
+        bytes_written = 0
+        with open(file_path, "wb") as buffer:
+            # Read and write in chunks to handle large files better
+            while chunk := file_obj.read(chunk_size):
+                buffer.write(chunk)
+                bytes_written += len(chunk)
+                
+                # Log progress for very large files
+                if bytes_written % (100 * 1024 * 1024) == 0:  # Log every 100MB
+                    print(f"Upload progress for {filename}: {bytes_written / (1024 * 1024):.1f}MB written")
+        
+        # Get file size
+        file_size = os.path.getsize(file_path)
+        print(f"Upload complete. File size: {file_size} bytes")
+        
+    except Exception as e:
+        # If something goes wrong, clean up partial file and re-raise
+        print(f"Error during file upload: {str(e)}")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
     
     # Update metadata
     metadata = load_metadata()

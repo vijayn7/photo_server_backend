@@ -44,12 +44,24 @@ else
   sudo systemctl start photo-api.service
 fi
 
-# Optional: Check if photo-server is running
+# Copy the updated photo-server service file to correct location
+echo "[DEPLOY] Copying updated photo-server.service file..." >> /home/vnannapu/deploy.log
+sudo cp /home/vnannapu/photo-server/services/photo-server.service /etc/systemd/system/photo-server.service
+sudo chmod 644 /etc/systemd/system/photo-server.service
+sudo systemctl daemon-reload
+
+# Check if photo-server is running
+echo "[DEPLOY] Restarting photo-server..." >> /home/vnannapu/deploy.log
+sudo systemctl restart photo-server.service
+
+# Verify the service status with detailed log output
+echo "[DEPLOY] Checking photo-server service status..." >> /home/vnannapu/deploy.log
+sudo systemctl status photo-server.service >> /home/vnannapu/deploy.log 2>&1
 if systemctl is-active --quiet photo-server.service; then
-  echo "[DEPLOY] photo-server is running." >> /home/vnannapu/deploy.log
+  echo "[DEPLOY] photo-server is running successfully." >> /home/vnannapu/deploy.log
 else
-  echo "[DEPLOY] Warning: photo-server is not running! Attempting to start..." >> /home/vnannapu/deploy.log
-  sudo systemctl start photo-server.service
+  echo "[DEPLOY] ERROR: photo-server failed to start! Check journal logs." >> /home/vnannapu/deploy.log
+  sudo journalctl -u photo-server.service --no-pager -n 50 >> /home/vnannapu/deploy.log 2>&1
 fi
 
 # Log completion

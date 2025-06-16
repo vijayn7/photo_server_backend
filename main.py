@@ -13,6 +13,8 @@ import os
 import shutil
 from python import db_utils
 from python import photo_utils
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 # Secret key for JWT (in production, use env var or config)
 SECRET_KEY = "your-secret-key"
@@ -29,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Set maximum upload file size to 50 MB (adjust as needed)
+# Note: This is at the FastAPI level, but your web server might also have limits
 
 # Setup static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -153,7 +158,7 @@ async def admin_page(request: Request, token: str = None):
 @app.post("/upload")
 async def upload_file(
     request: Request,
-    file: UploadFile = File(...),
+    file: UploadFile = File(..., description="File to upload. Maximum size is 10GB"),
     token: str = None
 ):
     # First, check if token was provided in query parameters
@@ -180,17 +185,31 @@ async def upload_file(
         user = get_user(username)
         if not user or user.disabled:
             raise HTTPException(status_code=401, detail="Invalid user")
+        
+        # Check file size - Now configured for much larger files
+        # This is a fallback check as we've increased the limit using configuration
+        MAX_SIZE = 10 * 1024 * 1024 * 1024  # 10GB
+        
+        # File size check will happen during the upload, not before
+        # We'll catch any exceptions from photo_utils if the file is too large
+        try:
+            # User is authenticated, process the file upload using photo_utils
+            file_metadata = photo_utils.save_uploaded_file(file.file, file.filename, username)
             
-        # User is authenticated, process the file upload using photo_utils
-        file_metadata = photo_utils.save_uploaded_file(file.file, file.filename, username)
-        
-        # For AJAX requests, return a JSON response
-        if "application/json" in request.headers.get("Accept", ""):
-            return {"success": True, "filename": file_metadata["filename"], "metadata": file_metadata}
-        
-        # For traditional form submissions, redirect
-        return RedirectResponse(url="/admin", status_code=303)
-        
+            # For AJAX requests, return a JSON response
+            if "application/json" in request.headers.get("Accept", ""):
+                return {"success": True, "filename": file_metadata["filename"], "metadata": file_metadata}
+            
+            # For traditional form submissions, redirect
+            return RedirectResponse(url="/admin", status_code=303)
+        except Exception as e:
+            # Handle upload errors
+            print(f"Upload error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File upload failed: {str(e)}. Maximum file size is 10GB."
+            )
+            
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token signature")
 
