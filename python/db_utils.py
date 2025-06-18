@@ -11,7 +11,7 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Path to users JSON file
-USERS_FILE = "photo_server/users.json"
+USERS_FILE = "../users.json"
 
 # Get admin username and password from environment variables
 import os
