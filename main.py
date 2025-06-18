@@ -56,6 +56,7 @@ class User(BaseModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     disabled: Optional[bool] = None
+    admin: Optional[bool] = None
 
 class UserInDB(User):
     hashed_password: str
@@ -143,16 +144,25 @@ async def admin_page(request: Request, token: str = None):
             if username:
                 user = get_user(username)
                 if user and not user.disabled:
-                    # Get files with metadata using the photo_utils module
-                    files = photo_utils.get_all_files()
-                    # Load all users to display in the admin panel
-                    all_users = db_utils.load_users()
-                    return templates.TemplateResponse("admin.html", {
-                        "request": request, 
-                        "files": files, 
-                        "user": user,
-                        "users": all_users
-                    })
+                    # Check if user is an admin
+                    if user.admin:
+                        # Get files with metadata using the photo_utils module
+                        files = photo_utils.get_all_files()
+                        # Load all users to display in the admin panel
+                        all_users = db_utils.load_users()
+                        return templates.TemplateResponse("admin.html", {
+                            "request": request, 
+                            "files": files, 
+                            "user": user,
+                            "users": all_users,
+                            "admin_username": db_utils.ADMIN_USERNAME
+                        })
+                    else:
+                        # Redirect non-admin users
+                        return HTMLResponse(
+                            content="Access denied. You need admin privileges.",
+                            status_code=403
+                        )
         except jwt.PyJWTError:
             pass
     
@@ -264,7 +274,8 @@ async def register_user(user_data: UserCreate):
         username=user_data.username,
         email=user_data.email,
         full_name=user_data.full_name,
-        password=user_data.password
+        password=user_data.password,
+        admin=False
     )
     
     if not success:
@@ -279,6 +290,67 @@ async def get_all_users(current_user: User = Depends(get_current_active_user)):
     # Only admin-level users should access this endpoint in production
     users = db_utils.load_users()
     return users
+
+# Class for admin update request data
+class AdminUpdateRequest(BaseModel):
+    target_username: str
+    admin_status: bool
+
+@app.post("/api/update-admin-status")
+async def update_admin_status(request: AdminUpdateRequest, current_user: User = Depends(get_current_active_user)):
+    """
+    Update the admin status of a user. Only the configured admin user can update admin status.
+    """
+    # Check if the current user is the admin user
+    if current_user.username != db_utils.ADMIN_USERNAME:
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"success": False, "message": f"Only {db_utils.ADMIN_USERNAME} can update admin privileges"}
+        )
+    
+    # Call the db_utils function to update admin status
+    if request.admin_status:
+        success = db_utils.grant_admin_privileges(current_user.username, request.target_username)
+    else:
+        success = db_utils.revoke_admin_privileges(current_user.username, request.target_username)
+    
+    if success:
+        return {"success": True, "message": f"Admin status for {request.target_username} has been updated"}
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"success": False, "message": "Failed to update admin status"}
+        )
+
+class AdminUpdateRequest(BaseModel):
+    target_username: str
+    admin_status: bool
+
+@app.post("/api/update-admin-status")
+async def update_admin_status(request: AdminUpdateRequest, current_user: User = Depends(get_current_active_user)):
+    """
+    Update the admin status of a user. Only 'vijayn7' can update admin status.
+    """
+    # Check if the current user is vijayn7
+    if current_user.username != "vijayn7":
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"success": False, "message": "Only vijayn7 can update admin privileges"}
+        )
+    
+    # Call the db_utils function to update admin status
+    if request.admin_status:
+        success = db_utils.grant_admin_privileges(current_user.username, request.target_username)
+    else:
+        success = db_utils.revoke_admin_privileges(current_user.username, request.target_username)
+    
+    if success:
+        return {"success": True, "message": f"Admin status for {request.target_username} has been updated"}
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"success": False, "message": "Failed to update admin status"}
+        )
 
 @app.get("/photos", response_model=List[Dict[str, Any]])
 async def get_photos(current_user: User = Depends(get_current_active_user)):

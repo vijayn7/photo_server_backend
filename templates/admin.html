@@ -172,6 +172,31 @@
         #users-table tr:hover {
             background-color: #ddd;
         }
+        
+        .admin-btn {
+            padding: 5px 8px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: white;
+        }
+        
+        .grant-admin {
+            background-color: #2196F3;
+        }
+        
+        .grant-admin:hover {
+            background-color: #0b7dda;
+        }
+        
+        .revoke-admin {
+            background-color: #ff9800;
+        }
+        
+        .revoke-admin:hover {
+            background-color: #e68a00;
+        }
     </style>
 </head>
 <body>
@@ -241,6 +266,10 @@
                         <th>Full Name</th>
                         <th>Email</th>
                         <th>Status</th>
+                        <th>Admin</th>
+                        {% if user.username == admin_username %}
+                        <th>Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -250,6 +279,24 @@
                         <td>{{ user_info.full_name }}</td>
                         <td>{{ user_info.email }}</td>
                         <td>{% if user_info.disabled %}Disabled{% else %}Active{% endif %}</td>
+                        <td>{% if user_info.admin %}Yes{% else %}No{% endif %}</td>
+                        {% if user.username == admin_username and username != admin_username %}
+                        <td>
+                            {% if not user_info.admin %}
+                            <button class="admin-btn grant-admin" data-username="{{ username }}" title="Grant admin privileges">
+                                Grant Admin
+                            </button>
+                            {% else %}
+                            <button class="admin-btn revoke-admin" data-username="{{ username }}" title="Revoke admin privileges">
+                                Revoke Admin
+                            </button>
+                            {% endif %}
+                        </td>
+                        {% elif user.username == admin_username and username == admin_username %}
+                        <td>
+                            <em>Super Admin</em>
+                        </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -513,6 +560,73 @@
                 alert('An error occurred while deleting the file: ' + error);
             }
         }
+        
+        // Admin privileges management
+        document.addEventListener('DOMContentLoaded', function() {
+            const grantButtons = document.querySelectorAll('.grant-admin');
+            const revokeButtons = document.querySelectorAll('.revoke-admin');
+            
+            // Add click event listeners to grant admin buttons
+            grantButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const username = this.getAttribute('data-username');
+                    updateAdminStatus(username, true);
+                });
+            });
+            
+            // Add click event listeners to revoke admin buttons
+            revokeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const username = this.getAttribute('data-username');
+                    updateAdminStatus(username, false);
+                });
+            });
+            
+            // Function to update admin status (grant or revoke)
+            function updateAdminStatus(targetUsername, isAdmin) {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    alert('You must be logged in to perform this action');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                // Prepare the request data
+                const data = {
+                    target_username: targetUsername,
+                    admin_status: isAdmin
+                };
+                
+                // Send the request to the backend
+                fetch('/api/update-admin-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to update admin status');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        alert(`Successfully ${isAdmin ? 'granted' : 'revoked'} admin privileges for ${targetUsername}`);
+                        // Reload the page to show the updated status
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Failed to update admin status');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating admin status:', error);
+                    alert(`Error: ${error.message}`);
+                });
+            }
+        });
     </script>
 </body>
 </html>

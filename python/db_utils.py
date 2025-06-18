@@ -13,6 +13,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Path to users JSON file
 USERS_FILE = "users.json"
 
+# Get admin username and password from environment variables
+import os
+ADMIN_USERNAME = os.environ.get("PHOTO_SERVER_ADMIN")
+ADMIN_PASSWORD = os.environ.get("PHOTO_SERVER_ADMIN_PASSWORD")
+
 def load_users():
     """
     Load users from JSON file or return default if file doesn't exist
@@ -25,6 +30,7 @@ def load_users():
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         # Return a default user if file doesn't exist or is invalid
+        # Create the default users dictionary
         default_users = {
             "alice": {
                 "username": "alice",
@@ -35,6 +41,17 @@ def load_users():
                 "admin": False,
             }
         }
+        
+        # Add the admin user from environment variable
+        default_users[ADMIN_USERNAME] = {
+            "username": ADMIN_USERNAME,
+            "full_name": "Admin User",
+            "email": f"{ADMIN_USERNAME}@example.com",
+            "hashed_password": pwd_context.hash(ADMIN_PASSWORD),
+            "disabled": False,
+            "admin": True,
+        }
+        
         # Save the default users to create the file
         save_users(default_users)
         return default_users
@@ -85,7 +102,8 @@ def create_user(username, email, full_name, password, admin=False):
     # Hash the password
     hashed_password = pwd_context.hash(password)
 
-    admin = True if username == "vijayn7" else False
+    # Ensure the configured admin username is always an admin, otherwise use the provided admin value
+    is_admin = True if username == ADMIN_USERNAME else admin
 
     # Add the new user
     users[username] = {
@@ -94,7 +112,7 @@ def create_user(username, email, full_name, password, admin=False):
         "full_name": full_name,
         "hashed_password": hashed_password,
         "disabled": False,
-        "admin": admin,
+        "admin": is_admin,
     }
     
     # Save updated user database
@@ -137,15 +155,15 @@ def update_admin_status(admin_username, target_username, admin_status):
     Update the admin status of a user
     
     Args:
-        admin_username (str): Username of the admin making the change (must be "vijayn7")
+        admin_username (str): Username of the admin making the change (must be the admin user defined in environment)
         target_username (str): Username of the user whose admin status is being updated
         admin_status (bool): New admin status (True to grant admin, False to revoke)
         
     Returns:
         bool: True if update was successful, False otherwise
     """
-    # Check if the admin user is vijayn7
-    if admin_username != "vijayn7":
+    # Check if the admin user is the configured admin
+    if admin_username != ADMIN_USERNAME:
         return False
     
     # Check if the admin user exists and is an admin
@@ -174,7 +192,7 @@ def grant_admin_privileges(admin_username, target_username):
     Grant admin privileges to a user
     
     Args:
-        admin_username (str): Username of the admin making the change (must be "vijayn7")
+        admin_username (str): Username of the admin making the change (must be the admin user defined in environment)
         target_username (str): Username of the user to grant admin privileges to
         
     Returns:
@@ -187,7 +205,7 @@ def revoke_admin_privileges(admin_username, target_username):
     Revoke admin privileges from a user
     
     Args:
-        admin_username (str): Username of the admin making the change (must be "vijayn7")
+        admin_username (str): Username of the admin making the change (must be the admin user defined in environment)
         target_username (str): Username of the user to revoke admin privileges from
         
     Returns:
