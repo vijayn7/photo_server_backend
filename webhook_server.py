@@ -1,7 +1,5 @@
-# webhook_server.py
-
-from fastapi import FastAPI, Request
 import subprocess
+from fastapi import FastAPI, Request
 
 app = FastAPI()
 
@@ -9,6 +7,6 @@ app = FastAPI()
 async def deploy(request: Request):
     payload = await request.json()
     print("Received webhook:", payload)
-    # Pull latest code and restart service
-    subprocess.run(["/home/vnannapu/photo-server/deploy.sh"], check=True)
-    return {"status": "ok"}
+    # Run deploy.sh in background without waiting
+    subprocess.Popen(["/home/vnannapu/photo-server/deploy.sh"])
+    return {"status": "deployment started"}
