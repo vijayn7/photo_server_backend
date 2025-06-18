@@ -10,5 +10,5 @@ async def deploy(request: Request):
     payload = await request.json()
     print("Received webhook:", payload)
     # Pull latest code and restart service
-    subprocess.run(["/home/vnannapu/photo-server/deploy.sh"])
+    subprocess.run(["/home/vnannapu/photo-server/deploy.sh"], check=True)
     return {"status": "ok"}
