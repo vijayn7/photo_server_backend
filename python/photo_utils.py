@@ -16,6 +16,32 @@ import json
 UPLOADS_DIR = "uploads"
 METADATA_FILE = os.path.join(UPLOADS_DIR, "metadata.json")
 
+def format_file_size(size_bytes: int) -> str:
+    """
+    Format file size from bytes to human-readable format
+    
+    Args:
+        size_bytes (int): Size in bytes
+        
+    Returns:
+        str: Human-readable size (e.g., "5.2 MB")
+    """
+    # Define size units
+    units = ['bytes', 'KB', 'MB', 'GB', 'TB']
+    
+    # Calculate the appropriate unit
+    i = 0
+    size = float(size_bytes)
+    while size >= 1024 and i < len(units) - 1:
+        size /= 1024
+        i += 1
+    
+    # Format the output with 2 decimal places for larger units, no decimals for bytes
+    if i == 0:  # bytes
+        return f"{int(size)} {units[i]}"
+    else:
+        return f"{size:.2f} {units[i]}"
+
 def ensure_upload_dir():
     """
     Ensures that the uploads directory exists
@@ -131,6 +157,7 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
         "uploaded_by": username,
         "upload_date": datetime.now().isoformat(),
         "file_size": file_size,
+        "size": format_file_size(file_size),  # Add formatted size attribute
         "file_type": os.path.splitext(filename)[1].lower()[1:],  # Extension without dot
     }
     
@@ -150,6 +177,7 @@ def get_all_files(username: Optional[str] = None) -> List[Dict[str, Any]]:
         list: List of dictionaries with file metadata
     """
     metadata = load_metadata()
+    metadata_updated = False
     
     # Check for files that exist on disk but not in metadata
     actual_files = set(os.listdir(UPLOADS_DIR))
@@ -163,21 +191,33 @@ def get_all_files(username: Optional[str] = None) -> List[Dict[str, Any]]:
     for filename in actual_files - metadata_files:
         file_path = os.path.join(UPLOADS_DIR, filename)
         if os.path.isfile(file_path):
+            file_size = os.path.getsize(file_path)
             metadata[filename] = {
                 "filename": filename,
                 "original_name": filename,
                 "uploaded_by": "unknown",
                 "upload_date": datetime.fromtimestamp(os.path.getctime(file_path)).isoformat(),
-                "file_size": os.path.getsize(file_path),
+                "file_size": file_size,
+                "size": format_file_size(file_size),
                 "file_type": os.path.splitext(filename)[1].lower()[1:],
             }
+            metadata_updated = True
+    
+    # Update existing metadata entries to add the size attribute if it's missing
+    for filename in metadata_files.intersection(actual_files):
+        if "size" not in metadata[filename] and "file_size" in metadata[filename]:
+            file_size = metadata[filename]["file_size"]
+            metadata[filename]["size"] = format_file_size(file_size)
+            metadata_updated = True
     
     # Remove metadata for files that no longer exist
     for filename in metadata_files - actual_files:
         metadata.pop(filename, None)
+        metadata_updated = True
     
     # Save updated metadata
-    save_metadata(metadata)
+    if metadata_updated:
+        save_metadata(metadata)
     
     # Filter by username if provided
     result = []

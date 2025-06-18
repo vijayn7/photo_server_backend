@@ -238,8 +238,8 @@
                         <video width="100%" height="auto" controls>
                             <source src="/uploads/{{ file.filename }}" type="video/{{ file.file_type }}">
                             Your browser does not support the video tag.
-                        </video>
-                    </a>
+                        </a>
+                    </div>
                     {% else %}
                     <a href="/uploads/{{ file.filename }}" target="_blank">
                         <div style="background-color: #f8f8f8; padding: 2rem 0;">File: {{ file.filename }}</div>
@@ -249,6 +249,9 @@
                     <div class="file-meta">
                         <small>Uploaded by: {{ file.uploaded_by }}</small><br>
                         <small>{{ file.upload_date.split('T')[0] }}</small>
+                        {% if file.size %}
+                        <small> | Size: {{ file.size }}</small>
+                        {% endif %}
                         <button class="delete-btn" onclick="deleteFile('{{ file.filename }}')">Delete</button>
                     </div>
                 </div>
