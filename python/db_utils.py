@@ -11,12 +11,12 @@ from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Path to users JSON file
-USERS_FILE = "users.json"
+USERS_FILE = "photo_server/users.json"
 
 # Get admin username and password from environment variables
 import os
-ADMIN_USERNAME = os.environ.get("PHOTO_SERVER_ADMIN")
-ADMIN_PASSWORD = os.environ.get("PHOTO_SERVER_ADMIN_PASSWORD")
+ADMIN_USERNAME = os.environ.get("PHOTO_SERVER_ADMIN", "vijayn7")
+ADMIN_PASSWORD = os.environ.get("PHOTO_SERVER_ADMIN_PASSWORD", "admin_password")
 
 def load_users():
     """

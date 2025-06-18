@@ -22,9 +22,40 @@ echo "[DEPLOY] Installing dependencies..." >> /home/vnannapu/deploy.log
 pip install -r requirements.txt
 echo "[DEPLOY] Dependencies installed." >> /home/vnannapu/deploy.log
 
-# Restart the photo-api service (assuming it's run by systemd)
-echo "[DEPLOY] Restarting photo-api service..." >> /home/vnannapu/deploy.log
-sudo systemctl restart photo-api.service
+# Ensure .env file exists with proper settings
+echo "[DEPLOY] Checking .env file..." >> /home/vnannapu/deploy.log
+if [ ! -f .env ]; then
+    echo "[DEPLOY] Creating .env file with default settings" >> /home/vnannapu/deploy.log
+    cat > .env << EOL
+# Environment variables for Photo Server Backend
+PHOTO_SERVER_ADMIN=vijayn7
+PHOTO_SERVER_ADMIN_PASSWORD=admin_password
+
+# JWT Settings
+SECRET_KEY=$(openssl rand -hex 32)
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Database configuration
+DB_PATH=./data/photos.db
+EOL
+    echo "[DEPLOY] Created .env file with secure settings" >> /home/vnannapu/deploy.log
+else
+    echo "[DEPLOY] .env file exists, checking required variables" >> /home/vnannapu/deploy.log
+    
+    # Ensure PHOTO_SERVER_ADMIN_PASSWORD is set
+    if ! grep -q "PHOTO_SERVER_ADMIN_PASSWORD" .env; then
+        echo "[DEPLOY] Adding PHOTO_SERVER_ADMIN_PASSWORD to .env" >> /home/vnannapu/deploy.log
+        echo "PHOTO_SERVER_ADMIN_PASSWORD=admin_password" >> .env
+    fi
+    
+    # Ensure SECRET_KEY is set
+    if ! grep -q "SECRET_KEY" .env; then
+        echo "[DEPLOY] Adding SECRET_KEY to .env" >> /home/vnannapu/deploy.log
+        echo "SECRET_KEY=$(openssl rand -hex 32)" >> .env
+    fi
+fi
+
 
 # Test and reload Nginx configuration
 echo "[DEPLOY] Testing and reloading Nginx configuration..." >> /home/vnannapu/deploy.log
@@ -34,14 +65,6 @@ if [ $? -eq 0 ]; then
   echo "[DEPLOY] Deployment completed successfully." >> /home/vnannapu/deploy.log
 else
   echo "[DEPLOY] Deployment failed. Check the logs for details." >> /home/vnannapu/deploy.log
-fi
-
-# Optional: Check if photo-api service is running
-if systemctl is-active --quiet photo-api.service; then
-  echo "[DEPLOY] photo-api service is running." >> /home/vnannapu/deploy.log
-else
-  echo "[DEPLOY] Warning: photo-api service is not running! Attempting to start..." >> /home/vnannapu/deploy.log
-  sudo systemctl start photo-api.service
 fi
 
 # Copy the updated photo-server service file to correct location

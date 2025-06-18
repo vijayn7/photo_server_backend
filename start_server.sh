@@ -4,7 +4,8 @@
 # Load environment variables from .env file if it exists
 if [ -f .env ]; then
     echo "Loading environment variables from .env file..."
-    export $(grep -v '^#' .env | xargs)
+    # Only process lines that don't start with # and contain an equals sign
+    export $(grep -v '^#' .env | grep '=' | xargs)
 fi
 
 echo "Starting photo server with large file upload support (up to 10 GB)..."
