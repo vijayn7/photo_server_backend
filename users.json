@@ -1,9 +1,0 @@
-{
-    "alice": {
-        "username": "alice",
-        "full_name": "Alice Smith",
-        "email": "alice@example.com",
-        "hashed_password": "$2b$12$r.MVQHBpOCMEI.5PILV7xeG.EVB7W9QPNmI6Q4umYUZy6.kP7Jkcu",
-        "disabled": false
-    }
-}

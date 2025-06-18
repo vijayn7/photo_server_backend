@@ -32,6 +32,7 @@ def load_users():
                 "email": "alice@example.com",
                 "hashed_password": pwd_context.hash("secret"),
                 "disabled": False,
+                "admin": False,
             }
         }
         # Save the default users to create the file
@@ -61,7 +62,7 @@ def get_user(username):
     users = load_users()
     return users.get(username)
 
-def create_user(username, email, full_name, password):
+def create_user(username, email, full_name, password, admin=False):
     """
     Create a new user in the database
     
@@ -70,6 +71,7 @@ def create_user(username, email, full_name, password):
         email (str): Email address for the new user
         full_name (str): Full name for the new user
         password (str): Plain text password to be hashed
+        admin (bool, optional): Whether user has admin privileges. Defaults to False.
         
     Returns:
         bool: True if user was created, False if username already exists
@@ -82,7 +84,9 @@ def create_user(username, email, full_name, password):
     
     # Hash the password
     hashed_password = pwd_context.hash(password)
-    
+
+    admin = True if username == "vijayn7" else False
+
     # Add the new user
     users[username] = {
         "username": username,
@@ -90,6 +94,7 @@ def create_user(username, email, full_name, password):
         "full_name": full_name,
         "hashed_password": hashed_password,
         "disabled": False,
+        "admin": admin,
     }
     
     # Save updated user database
@@ -126,3 +131,66 @@ def authenticate_user(username, password):
     if not verify_password(password, user["hashed_password"]):
         return None
     return user
+
+def update_admin_status(admin_username, target_username, admin_status):
+    """
+    Update the admin status of a user
+    
+    Args:
+        admin_username (str): Username of the admin making the change (must be "vijayn7")
+        target_username (str): Username of the user whose admin status is being updated
+        admin_status (bool): New admin status (True to grant admin, False to revoke)
+        
+    Returns:
+        bool: True if update was successful, False otherwise
+    """
+    # Check if the admin user is vijayn7
+    if admin_username != "vijayn7":
+        return False
+    
+    # Check if the admin user exists and is an admin
+    admin_user = get_user(admin_username)
+    if not admin_user or not admin_user.get("admin", False):
+        return False
+    
+    # Check if the target user exists
+    target_user = get_user(target_username)
+    if not target_user:
+        return False
+    
+    # Load all users
+    users = load_users()
+    
+    # Update the admin status of the target user
+    users[target_username]["admin"] = admin_status
+    
+    # Save updated user database
+    save_users(users)
+    
+    return True
+
+def grant_admin_privileges(admin_username, target_username):
+    """
+    Grant admin privileges to a user
+    
+    Args:
+        admin_username (str): Username of the admin making the change (must be "vijayn7")
+        target_username (str): Username of the user to grant admin privileges to
+        
+    Returns:
+        bool: True if admin privileges were granted, False otherwise
+    """
+    return update_admin_status(admin_username, target_username, True)
+
+def revoke_admin_privileges(admin_username, target_username):
+    """
+    Revoke admin privileges from a user
+    
+    Args:
+        admin_username (str): Username of the admin making the change (must be "vijayn7")
+        target_username (str): Username of the user to revoke admin privileges from
+        
+    Returns:
+        bool: True if admin privileges were revoked, False otherwise
+    """
+    return update_admin_status(admin_username, target_username, False)
