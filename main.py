@@ -16,10 +16,10 @@ from python import photo_utils
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-# Secret key for JWT (in production, use env var or config)
-SECRET_KEY = "your-secret-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# Get JWT settings from environment variables
+SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key")
+ALGORITHM = os.environ.get("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 app = FastAPI()
 
