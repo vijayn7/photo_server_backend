@@ -88,6 +88,37 @@
             font-size: 0.9rem;
             text-align: center;
         }
+        
+        .file-name {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #e0e0e0;
+            word-break: break-word;
+        }
+        
+        .file-meta {
+            color: #9e9e9e;
+            font-size: 0.85rem;
+            margin-bottom: 0.8rem;
+        }
+        
+        .delete-btn {
+            background-color: #cf6679;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .delete-btn:hover {
+            background-color: #e56b7f;
+            transform: translateY(-2px);
+        }
         .file-item:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
@@ -100,10 +131,12 @@
         }
         .file-checkbox {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            transform: scale(1.2);
+            top: 12px;
+            left: 12px;
+            transform: scale(1.3);
             cursor: pointer;
+            accent-color: #5e60ce;
+            z-index: 5;
         }
         .bulk-actions {
             margin-bottom: 15px;
@@ -140,31 +173,42 @@
             background-color: #d32f2f;
         }
         .file-size-note {
-            color: #666;
-            font-size: 0.8rem;
-            margin-top: 10px;
+            color: #9e9e9e;
+            font-size: 0.85rem;
+            margin-top: 16px;
             text-align: center;
         }
         progress {
             -webkit-appearance: none;
             appearance: none;
+            height: 12px;
         }
         progress::-webkit-progress-bar {
-            background-color: #f0f0f0;
-            border-radius: 4px;
+            background-color: #2d2d2d;
+            border-radius: 6px;
+            border: 1px solid #3d3d3d;
         }
         progress::-webkit-progress-value {
-            background-color: #4CAF50;
-            border-radius: 4px;
+            background-color: #5e60ce;
+            border-radius: 5px;
         }
         .custom-file-upload {
-            border: 1px solid #ccc;
+            border: 1px solid #3d3d3d;
             display: inline-block;
-            padding: 6px 12px;
+            padding: 10px 16px;
             cursor: pointer;
-            background-color: #f8f8f8;
-            border-radius: 4px;
-            margin-right: 10px;
+            background-color: #3a86ff;
+            color: #ffffff;
+            border-radius: 6px;
+            margin-right: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .custom-file-upload:hover {
+            background-color: #4a90ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         input[type="file"] {
             display: none;
@@ -317,18 +361,19 @@
             color: #9ebaff;
         }
         .selected-files-list {
-            margin-top: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            margin-top: 18px;
+            border: 1px solid #3d3d3d;
+            border-radius: 8px;
             max-height: 300px;
             overflow-y: auto;
+            background-color: #2d2d2d;
         }
         .selected-file-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 12px;
+            border-bottom: 1px solid #3d3d3d;
         }
         .selected-file-item:last-child {
             border-bottom: none;
@@ -339,25 +384,26 @@
             flex-grow: 1;
         }
         .selected-file-icon {
-            width: 30px;
-            height: 30px;
-            margin-right: 10px;
+            width: 36px;
+            height: 36px;
+            margin-right: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 3px;
-            font-size: 12px;
+            border-radius: 6px;
+            font-size: 16px;
             font-weight: bold;
             color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         .selected-file-icon.image {
-            background-color: #4CAF50;
+            background-color: #5e60ce;
         }
         .selected-file-icon.video {
-            background-color: #2196F3;
+            background-color: #3a86ff;
         }
         .selected-file-icon.other {
-            background-color: #FF9800;
+            background-color: #ff9e00;
         }
         .selected-file-details {
             flex-grow: 1;
@@ -365,23 +411,26 @@
         .selected-file-name {
             font-size: 0.9rem;
             font-weight: 500;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
+            color: #e0e0e0;
         }
         .selected-file-size {
             font-size: 0.8rem;
-            color: #666;
+            color: #9e9e9e;
         }
         .remove-file-btn {
-            background-color: #f44336;
+            background-color: #cf6679;
             color: white;
             border: none;
-            border-radius: 3px;
-            padding: 4px 8px;
-            font-size: 0.7rem;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
             cursor: pointer;
+            transition: all 0.2s ease;
         }
         .remove-file-btn:hover {
-            background-color: #d32f2f;
+            background-color: #e56b7f;
+            transform: translateY(-1px);
         }
         
         /* Status badges for users table */
@@ -442,22 +491,22 @@
                 <!-- Selected files will be displayed here -->
             </div>
             
-            <div id="batch-progress-container" style="display: none; margin-top: 15px;">
-                <div id="overall-progress" style="margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <div id="batch-progress-container" style="display: none; margin-top: 20px; background-color: #2d2d2d; border-radius: 8px; padding: 16px; border: 1px solid #3d3d3d;">
+                <div id="overall-progress" style="margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: #e0e0e0; font-weight: 500;">
                         <span>Overall Progress:</span>
                         <span id="overall-progress-text">0 of 0 files</span>
                     </div>
-                    <progress id="overall-progress-bar" max="100" value="0" style="width: 100%; height: 20px;"></progress>
+                    <progress id="overall-progress-bar" max="100" value="0" style="width: 100%; height: 16px;"></progress>
                 </div>
-                <div id="current-upload" style="margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div id="current-upload" style="margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: #e0e0e0;">
                         <span id="current-file-name">Preparing...</span>
                         <span id="current-progress-text">0%</span>
                     </div>
-                    <progress id="current-progress-bar" max="100" value="0" style="width: 100%; height: 15px;"></progress>
+                    <progress id="current-progress-bar" max="100" value="0" style="width: 100%; height: 12px;"></progress>
                 </div>
-                <div id="upload-status" style="font-size: 0.9rem; color: #666;"></div>
+                <div id="upload-status" style="font-size: 0.9rem; color: #9e9e9e; padding-top: 6px;"></div>
             </div>
             <p class="file-size-note">Maximum upload size per file: 10GB. You can select multiple files for batch upload.</p>
         </div>
@@ -487,11 +536,14 @@
                         <video width="100%" height="auto" controls>
                             <source src="/uploads/{{ file.file_path }}" type="video/{{ file.file_type }}">
                             Your browser does not support the video tag.
-                        </a>
-                    </div>
+                        </video>
+                    </a>
                     {% else %}
                     <a href="/uploads/{{ file.file_path }}" target="_blank">
-                        <div style="background-color: #f8f8f8; padding: 2rem 0;">File: {{ file.filename }}</div>
+                        <div style="background-color: #262626; padding: 2rem 0; border-radius: 6px; color: #9e9e9e; font-weight: 500;">
+                            <div style="font-size: 36px; margin-bottom: 10px;">📄</div>
+                            <div>{{ file.filename.split('.')[-1].upper() }}</div>
+                        </div>
                     </a>
                     {% endif %}
                     <div class="file-name">{{ file.filename }}</div>
