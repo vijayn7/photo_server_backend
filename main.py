@@ -38,12 +38,11 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 # Setup static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory="/mnt/photos"), name="uploads")
 templates = Jinja2Templates(directory="templates")
 
-# Create uploads directory if it doesn't exist
-os.makedirs("uploads", exist_ok=True)
-os.makedirs("uploads", exist_ok=True)
+# Create photos directory if it doesn't exist
+os.makedirs("/mnt/photos", exist_ok=True)
 
 # Use the password hashing context from db_utils
 pwd_context = db_utils.pwd_context

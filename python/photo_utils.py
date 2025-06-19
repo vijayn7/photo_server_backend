@@ -13,7 +13,7 @@ from typing import List, Dict, Optional, Any
 import json
 
 # Default configuration
-UPLOADS_DIR = "uploads"
+UPLOADS_DIR = "/mnt/photos"
 METADATA_FILE = os.path.join(UPLOADS_DIR, "metadata.json")
 
 def format_file_size(size_bytes: int) -> str:
