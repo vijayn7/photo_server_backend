@@ -422,29 +422,26 @@
             const overallProgressElement = document.getElementById('overall-progress-bar');
             const overallProgressText = document.getElementById('overall-progress-text');
             const currentProgressElement = document.getElementById('current-progress-bar');
-            const currentProgressText = document.getElementById('current-progress-text');
             const currentFileName = document.getElementById('current-file-name');
-            const uploadStatus = document.getElementById('upload-status');
+            const currentProgressText = document.getElementById('current-progress-text');
+            const statusText = document.getElementById('upload-status');
             const batchProgressContainer = document.getElementById('batch-progress-container');
             
             if (files.length === 0) {
-                alert('Please select at least one file to upload');
+                alert('Please select at least one file to upload.');
                 return;
             }
             
-            // Check total file size (client-side validation)
-            let totalSize = 0;
-            for (const file of files) {
-                totalSize += file.size;
-            }
-            
+            // Check file sizes individually
             const maxSize = 10 * 1024 * 1024 * 1024; // 10GB
-            if (totalSize > maxSize) {
-                const totalSizeFormatted = totalSize > 1024 * 1024 * 1024 
-                    ? `${(totalSize / 1024 / 1024 / 1024).toFixed(2)} GB` 
-                    : `${(totalSize / 1024 / 1024).toFixed(2)} MB`;
-                alert(`Total file size exceeds the 10GB limit. Selected files size: ${totalSizeFormatted}`);
-                return;
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].size > maxSize) {
+                    const fileSize = files[i].size > 1024 * 1024 * 1024 
+                        ? `${(files[i].size / 1024 / 1024 / 1024).toFixed(2)} GB` 
+                        : `${(files[i].size / 1024 / 1024).toFixed(2)} MB`;
+                    alert(`File "${files[i].name}" is too large. Maximum size is 10GB. This file is ${fileSize}`);
+                    return;
+                }
             }
             
             const token = localStorage.getItem('token');
@@ -455,142 +452,127 @@
             }
             
             try {
-                // Show progress bars
+                // Show batch progress container
                 batchProgressContainer.style.display = 'block';
                 overallProgressElement.value = 0;
-                currentProgressElement.value = 0;
+                overallProgressText.textContent = `0 of ${files.length} files`;
+                statusText.textContent = 'Starting upload...';
                 
-                // Update the selected files list in the UI
-                const selectedFilesList = document.getElementById('selectedFilesList');
-                selectedFilesList.innerHTML = ''; // Clear existing list
-                for (const file of files) {
-                    const listItem = document.createElement('div');
-                    listItem.className = 'selected-file-item';
-                    listItem.innerHTML = `
-                        <div class="selected-file-info">
-                            <div class="selected-file-icon ${getFileIconClass(file)}">${getFileIconChar(file)}</div>
-                            <div class="selected-file-details">
-                                <div class="selected-file-name">${file.name}</div>
-                                <div class="selected-file-size">${formatFileSize(file.size)}</div>
-                            </div>
-                        </div>
-                        <button class="remove-file-btn" onclick="removeFileFromList(this)">Remove</button>
-                    `;
-                    selectedFilesList.appendChild(listItem);
+                // Convert FileList to Array for easier handling
+                const fileArray = Array.from(files);
+                
+                // Track overall progress
+                let completedFiles = 0;
+                let successfulUploads = 0;
+                let failedUploads = 0;
+                
+                // Upload files sequentially (one by one)
+                for (let i = 0; i < fileArray.length; i++) {
+                    const file = fileArray[i];
+                    currentFileName.textContent = `Uploading: ${file.name}`;
+                    currentProgressElement.value = 0;
+                    currentProgressText.textContent = '0%';
+                    
+                    try {
+                        await uploadSingleFile(file, token, currentProgressElement, currentProgressText);
+                        successfulUploads++;
+                        statusText.textContent = `Successfully uploaded: ${file.name}`;
+                    } catch (error) {
+                        failedUploads++;
+                        statusText.textContent = `Failed to upload: ${file.name} - ${error.message}`;
+                        console.error(`Upload failed for ${file.name}:`, error);
+                    }
+                    
+                    completedFiles++;
+                    overallProgressElement.value = (completedFiles / fileArray.length) * 100;
+                    overallProgressText.textContent = `${completedFiles} of ${fileArray.length} files`;
                 }
-                selectedFilesList.style.display = 'block';
                 
-                // Prepare for batch upload
+                // Final status
+                if (failedUploads === 0) {
+                    statusText.textContent = `All ${successfulUploads} files uploaded successfully!`;
+                    currentFileName.textContent = 'Upload complete!';
+                    currentProgressText.textContent = '100%';
+                    
+                    // Reload page after short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    statusText.textContent = `Upload complete: ${successfulUploads} successful, ${failedUploads} failed`;
+                    currentFileName.textContent = 'Batch upload finished';
+                }
+                
+            } catch (error) {
+                console.error('Batch upload error:', error);
+                statusText.textContent = 'An error occurred during batch upload: ' + error.message;
+            }
+        }
+        
+        // Helper function to upload a single file with progress tracking
+        function uploadSingleFile(file, token, progressElement, progressText) {
+            return new Promise((resolve, reject) => {
                 const formData = new FormData();
-                for (const file of files) {
-                    formData.append('file', file);
-                }
+                formData.append('file', file);
                 
-                // Use XMLHttpRequest for upload progress tracking
                 const xhr = new XMLHttpRequest();
                 
-                // Track overall upload progress
+                // Track upload progress
                 xhr.upload.addEventListener('progress', (event) => {
                     if (event.lengthComputable) {
                         const percentComplete = (event.loaded / event.total) * 100;
-                        overallProgressElement.value = percentComplete;
-                        overallProgressText.textContent = `${Math.round(percentComplete)}% (${event.loaded} of ${event.total} bytes)`;
-                    }
-                });
-                
-                // Track current file upload progress
-                let currentFileIndex = 0;
-                let currentFile = files[currentFileIndex];
-                xhr.upload.addEventListener('loadstart', () => {
-                    // Reset current file progress
-                    currentProgressElement.value = 0;
-                    currentProgressText.textContent = '0%';
-                    currentFileName.textContent = currentFile.name;
-                    uploadStatus.textContent = 'Uploading...';
-                });
-                
-                xhr.upload.addEventListener('progress', (event) => {
-                    if (event.lengthComputable && currentFile) {
-                        const percentComplete = (event.loaded / event.total) * 100;
-                        currentProgressElement.value = percentComplete;
-                        currentProgressText.textContent = `${Math.round(percentComplete)}%`;
+                        progressElement.value = percentComplete;
+                        progressText.textContent = `${percentComplete.toFixed(1)}%`;
                     }
                 });
                 
                 // Upload complete
                 xhr.addEventListener('load', () => {
                     if (xhr.status >= 200 && xhr.status < 300) {
-                        // Success
-                        overallProgressElement.value = 100;
-                        currentProgressElement.value = 100;
-                        currentProgressText.textContent = 'Upload complete!';
-                        uploadStatus.textContent = 'Upload complete!';
-                        
-                        // Reload page after short delay
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 500);
+                        progressElement.value = 100;
+                        progressText.textContent = '100%';
+                        resolve();
                     } else {
-                        // Error
                         try {
                             const response = JSON.parse(xhr.responseText);
-                            let errorMessage = 'Upload failed: ' + (response.detail || JSON.stringify(response));
-                            
-                            // Add troubleshooting tips based on the error
-                            if (xhr.status === 413) {
-                                errorMessage += '\n\nThis may be due to server configuration limits. Try:\n' + 
-                                               '- Uploading a smaller file\n' + 
-                                               '- Breaking the file into smaller parts\n' +
-                                               '- Contacting the administrator to increase upload limits';
-                            } else if (xhr.status === 500) {
-                                errorMessage += '\n\nServer error occurred. Troubleshooting tips:\n' + 
-                                               '- Try a different file format\n' + 
-                                               '- Ensure the file is not corrupted\n' + 
-                                               '- Try again later';
-                            }
-                            
-                            alert(errorMessage);
+                            reject(new Error(response.detail || `HTTP ${xhr.status}: ${xhr.statusText}`));
                         } catch {
-                            alert(`Upload failed with status ${xhr.status}: ${xhr.statusText}`);
+                            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
                         }
-                        batchProgressContainer.style.display = 'none';
                     }
                 });
                 
                 // Upload failed
                 xhr.addEventListener('error', () => {
-                    alert('Upload failed due to network error. Please try again.');
-                    batchProgressContainer.style.display = 'none';
+                    reject(new Error('Network error during upload'));
                 });
                 
                 // Upload aborted
                 xhr.addEventListener('abort', () => {
-                    alert('Upload was aborted.');
-                    batchProgressContainer.style.display = 'none';
+                    reject(new Error('Upload was aborted'));
                 });
                 
                 // Handle timeout
                 xhr.addEventListener('timeout', () => {
-                    alert('Upload timed out. The file may be too large or your connection is too slow.');
-                    batchProgressContainer.style.display = 'none';
+                    reject(new Error('Upload timed out'));
                 });
                 
-                // Open and send request with extended timeout for large files
+                // Open and send request
                 xhr.open('POST', '/upload');
                 xhr.timeout = 3600000; // 1 hour timeout for very large files
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
                 xhr.send(formData);
-                
-            } catch (error) {
-                console.error('Upload error:', error);
-                alert('An error occurred during upload: ' + error);
-                batchProgressContainer.style.display = 'none';
-            }
+            });
         }
         
         function previewFiles(input) {
             const fileList = document.getElementById('selectedFilesList');
             fileList.innerHTML = ''; // Clear existing list
+            
+            if (input.files.length === 0) {
+                fileList.style.display = 'none';
+                return;
+            }
             
             const files = input.files;
             for (const file of files) {
@@ -604,17 +586,37 @@
                             <div class="selected-file-size">${formatFileSize(file.size)}</div>
                         </div>
                     </div>
-                    <button class="remove-file-btn" onclick="removeFileFromList(this)">Remove</button>
+                    <button class="remove-file-btn" onclick="removeFileFromList(this, '${file.name}')">Remove</button>
                 `;
                 fileList.appendChild(listItem);
             }
             fileList.style.display = 'block';
         }
         
-        function removeFileFromList(button) {
+        function removeFileFromList(button, fileName) {
+            const fileInput = document.getElementById('file-upload');
+            const dt = new DataTransfer();
+            
+            // Rebuild the file list without the removed file
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const file = fileInput.files[i];
+                if (file.name !== fileName) {
+                    dt.items.add(file);
+                }
+            }
+            
+            // Update the file input
+            fileInput.files = dt.files;
+            
+            // Remove the list item
             const listItem = button.closest('.selected-file-item');
             if (listItem) {
                 listItem.remove();
+            }
+            
+            // Hide the list if no files remain
+            if (fileInput.files.length === 0) {
+                document.getElementById('selectedFilesList').style.display = 'none';
             }
         }
         
