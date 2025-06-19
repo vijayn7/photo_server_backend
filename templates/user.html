@@ -4,22 +4,24 @@
     <title>My Photos - Photo Server</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f5f5f5;
+            background-color: #121212;
+            color: #e0e0e0;
         }
         .header {
-            background-color: #333;
+            background-color: #1a1a1a;
             color: white;
             padding: 1rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
         .header-buttons {
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
         .container {
             max-width: 1200px;
@@ -27,46 +29,49 @@
             padding: 0 1rem;
         }
         .upload-section {
-            background-color: white;
+            background-color: #1e1e1e;
             padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
             margin-bottom: 2rem;
+            border: 1px solid #2d2d2d;
         }
         .files-section {
-            background-color: white;
+            background-color: #1e1e1e;
             padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
             margin-bottom: 2rem;
+            border: 1px solid #2d2d2d;
         }
         h1, h2 {
             margin-top: 0;
-            color: #333;
+            color: #ffffff;
+            font-weight: 500;
         }
         .folder-tabs {
             display: flex;
             margin-bottom: 1rem;
-            border-bottom: 2px solid #ddd;
+            border-bottom: 2px solid #3d3d3d;
         }
         .folder-tab {
-            padding: 10px 20px;
+            padding: 12px 24px;
             cursor: pointer;
             border: none;
             background: none;
             font-size: 1rem;
-            color: #666;
+            color: #9e9e9e;
             border-bottom: 3px solid transparent;
             transition: all 0.3s;
         }
         .folder-tab.active {
-            color: #333;
-            border-bottom-color: #4CAF50;
-            font-weight: bold;
+            color: #ffffff;
+            border-bottom-color: #5e60ce;
+            font-weight: 500;
         }
         .folder-tab:hover {
-            color: #333;
-            background-color: #f5f5f5;
+            color: #e0e0e0;
+            background-color: #2a2a2a;
         }
         .file-list {
             display: grid;
@@ -75,50 +80,52 @@
             margin-top: 1rem;
         }
         .file-item {
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            border: 1px solid #3d3d3d;
+            border-radius: 8px;
             padding: 1rem;
             text-align: center;
-            transition: transform 0.2s, border-color 0.2s;
+            transition: all 0.3s ease;
             position: relative;
+            background-color: #2d2d2d;
         }
         .file-item img {
             width: 100%;
             height: 200px;
             object-fit: cover;
             object-position: center;
-            border-radius: 4px;
-            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            margin-bottom: 0.8rem;
         }
         .file-item video {
             width: 100%;
             height: 200px;
             object-fit: cover;
             object-position: center;
-            border-radius: 4px;
-            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            margin-bottom: 0.8rem;
         }
         .file-placeholder {
             width: 100%;
             height: 200px;
-            background-color: #f8f8f8;
+            background-color: #262626;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 4px;
-            margin-bottom: 0.5rem;
-            color: #666;
+            border-radius: 6px;
+            margin-bottom: 0.8rem;
+            color: #9e9e9e;
             font-size: 0.9rem;
             text-align: center;
         }
         .file-item:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            border-color: #5e60ce;
         }
         .file-item.selected {
-            border-color: #2196F3;
-            border-width: 3px;
-            background-color: #e3f2fd;
+            border-color: #5e60ce;
+            border-width: 2px;
+            background-color: #2c2c4a;
         }
         .file-checkbox {
             position: absolute;
@@ -224,24 +231,28 @@
             align-items: center;
         }
         button {
-            padding: 8px 16px;
-            background-color: #4CAF50;
+            padding: 10px 18px;
+            background-color: #5e60ce;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: background-color 0.3s, transform 0.2s;
         }
         button:hover {
-            background-color: #45a049;
+            background-color: #6f70dd;
+            transform: translateY(-2px);
         }
         .logout-btn {
-            background-color: #f44336;
+            background-color: #cf6679;
         }
         .logout-btn:hover {
-            background-color: #d32f2f;
+            background-color: #e56b7f;
         }
         .admin-view-btn {
-            background-color: #2196F3;
+            background-color: #3a86ff;
         }
         .admin-view-btn:hover {
             background-color: #0b7dda;
