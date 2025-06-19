@@ -207,20 +207,33 @@
     
     <div class="container">
         <div class="upload-section">
-            <h2>Upload New File</h2>
+            <h2>Upload Files</h2>
             <form id="uploadForm" class="upload-form">
                 <label for="file-upload" class="custom-file-upload">
-                    <i class="fa fa-cloud-upload"></i> Choose File
+                    <i class="fa fa-cloud-upload"></i> Choose Files
                 </label>
-                <input id="file-upload" type="file" name="file" onchange="previewFile(this)"/>
-                <button type="button" onclick="uploadFile()">Upload</button>
+                <input id="file-upload" type="file" name="file" multiple onchange="previewFiles(this)"/>
+                <button type="button" onclick="uploadFiles()">Upload Selected Files</button>
             </form>
-            <img id="preview" class="image-preview" alt="File preview">
-            <div id="progress-container" style="display: none; margin-top: 15px;">
-                <progress id="upload-progress" max="100" value="0" style="width: 100%; height: 20px;"></progress>
-                <div id="progress-text" style="text-align: center; margin-top: 5px; font-size: 14px;">0%</div>
+            <div id="file-preview-container" style="margin-top: 15px;"></div>
+            <div id="batch-progress-container" style="display: none; margin-top: 15px;">
+                <div id="overall-progress" style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>Overall Progress:</span>
+                        <span id="overall-progress-text">0 of 0 files</span>
+                    </div>
+                    <progress id="overall-progress-bar" max="100" value="0" style="width: 100%; height: 20px;"></progress>
+                </div>
+                <div id="current-upload" style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span id="current-file-name">Preparing...</span>
+                        <span id="current-progress-text">0%</span>
+                    </div>
+                    <progress id="current-progress-bar" max="100" value="0" style="width: 100%; height: 15px;"></progress>
+                </div>
+                <div id="upload-status" style="font-size: 0.9rem; color: #666;"></div>
             </div>
-            <p class="file-size-note">Maximum upload size: 10GB</p>
+            <p class="file-size-note">Maximum upload size per file: 10GB. You can select multiple files for batch upload.</p>
         </div>
         
         <div class="files-section">
@@ -331,25 +344,32 @@
             window.location.href = '/';
         }
         
-        async function uploadFile() {
+        async function uploadFiles() {
             const fileInput = document.getElementById('file-upload');
-            const file = fileInput.files[0];
-            const progressElement = document.getElementById('upload-progress');
-            const progressContainer = document.getElementById('progress-container');
+            const files = fileInput.files;
+            const overallProgressElement = document.getElementById('overall-progress-bar');
+            const overallProgressText = document.getElementById('overall-progress-text');
+            const currentProgressElement = document.getElementById('current-progress-bar');
+            const currentFileName = document.getElementById('current-file-name');
+            const currentProgressText = document.getElementById('current-progress-text');
+            const statusText = document.getElementById('upload-status');
+            const batchProgressContainer = document.getElementById('batch-progress-container');
             
-            if (!file) {
-                alert('Please select a file first');
+            if (files.length === 0) {
+                alert('Please select at least one file to upload.');
                 return;
             }
             
-            // Check file size (client-side validation)
+            // Check file sizes individually
             const maxSize = 10 * 1024 * 1024 * 1024; // 10GB
-            if (file.size > maxSize) {
-                const fileSize = file.size > 1024 * 1024 * 1024 
-                    ? `${(file.size / 1024 / 1024 / 1024).toFixed(2)} GB` 
-                    : `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-                alert(`File is too large. Maximum size is 10GB. Your file is ${fileSize}`);
-                return;
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].size > maxSize) {
+                    const fileSize = files[i].size > 1024 * 1024 * 1024 
+                        ? `${(files[i].size / 1024 / 1024 / 1024).toFixed(2)} GB` 
+                        : `${(files[i].size / 1024 / 1024).toFixed(2)} MB`;
+                    alert(`File "${files[i].name}" is too large. Maximum size is 10GB. This file is ${fileSize}`);
+                    return;
+                }
             }
             
             const token = localStorage.getItem('token');
@@ -360,14 +380,69 @@
             }
             
             try {
-                // Show progress bar
-                progressContainer.style.display = 'block';
-                progressElement.value = 0;
+                // Show batch progress container
+                batchProgressContainer.style.display = 'block';
+                overallProgressElement.value = 0;
+                overallProgressText.textContent = `0 of ${files.length} files`;
+                statusText.textContent = 'Starting upload...';
                 
+                // Convert FileList to Array for easier handling
+                const fileArray = Array.from(files);
+                
+                // Track overall progress
+                let completedFiles = 0;
+                let successfulUploads = 0;
+                let failedUploads = 0;
+                
+                // Upload files sequentially (one by one)
+                for (let i = 0; i < fileArray.length; i++) {
+                    const file = fileArray[i];
+                    currentFileName.textContent = `Uploading: ${file.name}`;
+                    currentProgressElement.value = 0;
+                    currentProgressText.textContent = '0%';
+                    
+                    try {
+                        await uploadSingleFile(file, token, currentProgressElement, currentProgressText);
+                        successfulUploads++;
+                        statusText.textContent = `Successfully uploaded: ${file.name}`;
+                    } catch (error) {
+                        failedUploads++;
+                        statusText.textContent = `Failed to upload: ${file.name} - ${error.message}`;
+                        console.error(`Upload failed for ${file.name}:`, error);
+                    }
+                    
+                    completedFiles++;
+                    overallProgressElement.value = (completedFiles / fileArray.length) * 100;
+                    overallProgressText.textContent = `${completedFiles} of ${fileArray.length} files`;
+                }
+                
+                // Final status
+                if (failedUploads === 0) {
+                    statusText.textContent = `All ${successfulUploads} files uploaded successfully!`;
+                    currentFileName.textContent = 'Upload complete!';
+                    currentProgressText.textContent = '100%';
+                    
+                    // Reload page after short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    statusText.textContent = `Upload complete: ${successfulUploads} successful, ${failedUploads} failed`;
+                    currentFileName.textContent = 'Batch upload finished';
+                }
+                
+            } catch (error) {
+                console.error('Batch upload error:', error);
+                statusText.textContent = 'An error occurred during batch upload: ' + error.message;
+            }
+        }
+        
+        // Helper function to upload a single file with progress tracking
+        function uploadSingleFile(file, token, progressElement, progressText) {
+            return new Promise((resolve, reject) => {
                 const formData = new FormData();
                 formData.append('file', file);
                 
-                // Use XMLHttpRequest for upload progress tracking
                 const xhr = new XMLHttpRequest();
                 
                 // Track upload progress
@@ -375,107 +450,85 @@
                     if (event.lengthComputable) {
                         const percentComplete = (event.loaded / event.total) * 100;
                         progressElement.value = percentComplete;
-                        
-                        // Format sizes based on file size (GB for large files, MB for smaller ones)
-                        let loadedSize, totalSize;
-                        if (event.total > 1024 * 1024 * 1024) {
-                            // Display in GB for files over 1GB
-                            loadedSize = `${(event.loaded / 1024 / 1024 / 1024).toFixed(2)}GB`;
-                            totalSize = `${(event.total / 1024 / 1024 / 1024).toFixed(2)}GB`;
-                        } else {
-                            // Display in MB for smaller files
-                            loadedSize = `${(event.loaded / 1024 / 1024).toFixed(1)}MB`;
-                            totalSize = `${(event.total / 1024 / 1024).toFixed(1)}MB`;
-                        }
-                        
-                        document.getElementById('progress-text').textContent = 
-                            `${percentComplete.toFixed(1)}% (${loadedSize} / ${totalSize})`;
+                        progressText.textContent = `${percentComplete.toFixed(1)}%`;
                     }
                 });
                 
                 // Upload complete
                 xhr.addEventListener('load', () => {
                     if (xhr.status >= 200 && xhr.status < 300) {
-                        // Success
                         progressElement.value = 100;
-                        document.getElementById('progress-text').textContent = 'Upload complete!';
-                        
-                        // Reload page after short delay
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 500);
+                        progressText.textContent = '100%';
+                        resolve();
                     } else {
-                        // Error
                         try {
                             const response = JSON.parse(xhr.responseText);
-                            let errorMessage = 'Upload failed: ' + (response.detail || JSON.stringify(response));
-                            
-                            // Add troubleshooting tips based on the error
-                            if (xhr.status === 413) {
-                                errorMessage += '\n\nThis may be due to server configuration limits. Try:\n' + 
-                                               '- Uploading a smaller file\n' + 
-                                               '- Breaking the file into smaller parts\n' +
-                                               '- Contacting the administrator to increase upload limits';
-                            } else if (xhr.status === 500) {
-                                errorMessage += '\n\nServer error occurred. Troubleshooting tips:\n' + 
-                                               '- Try a different file format\n' + 
-                                               '- Ensure the file is not corrupted\n' + 
-                                               '- Try again later';
-                            }
-                            
-                            alert(errorMessage);
+                            reject(new Error(response.detail || `HTTP ${xhr.status}: ${xhr.statusText}`));
                         } catch {
-                            alert(`Upload failed with status ${xhr.status}: ${xhr.statusText}`);
+                            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
                         }
-                        progressContainer.style.display = 'none';
                     }
                 });
                 
                 // Upload failed
                 xhr.addEventListener('error', () => {
-                    alert('Upload failed due to network error. Please try again.');
-                    progressContainer.style.display = 'none';
+                    reject(new Error('Network error during upload'));
                 });
                 
                 // Upload aborted
                 xhr.addEventListener('abort', () => {
-                    alert('Upload was aborted.');
-                    progressContainer.style.display = 'none';
+                    reject(new Error('Upload was aborted'));
                 });
                 
                 // Handle timeout
                 xhr.addEventListener('timeout', () => {
-                    alert('Upload timed out. The file may be too large or your connection is too slow.');
-                    progressContainer.style.display = 'none';
+                    reject(new Error('Upload timed out'));
                 });
                 
-                // Open and send request with extended timeout for large files
+                // Open and send request
                 xhr.open('POST', '/upload');
                 xhr.timeout = 3600000; // 1 hour timeout for very large files
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
                 xhr.send(formData);
-                
-            } catch (error) {
-                console.error('Upload error:', error);
-                alert('An error occurred during upload: ' + error);
-                progressContainer.style.display = 'none';
-            }
+            });
         }
         
-        function previewFile(input) {
-            const preview = document.getElementById('preview');
-            const file = input.files[0];
+        function previewFiles(input) {
+            const fileListContainer = document.getElementById('file-preview-container');
+            fileListContainer.innerHTML = ''; // Clear previous previews
             
-            if (file) {
+            const files = input.files;
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
                 const reader = new FileReader();
+                
                 reader.onload = function(e) {
+                    let previewElement;
                     if (file.type.startsWith('image/')) {
-                        preview.src = e.target.result;
-                        preview.style.display = 'block';
+                        previewElement = document.createElement('img');
+                        previewElement.src = e.target.result;
+                        previewElement.style.maxWidth = '100%';
+                        previewElement.style.height = 'auto';
+                        previewElement.style.marginBottom = '10px';
+                    } else if (file.type.startsWith('video/')) {
+                        previewElement = document.createElement('video');
+                        previewElement.src = e.target.result;
+                        previewElement.controls = true;
+                        previewElement.style.width = '100%';
+                        previewElement.style.height = 'auto';
+                        previewElement.style.marginBottom = '10px';
                     } else {
-                        preview.style.display = 'none';
+                        previewElement = document.createElement('div');
+                        previewElement.textContent = `File: ${file.name}`;
+                        previewElement.style.backgroundColor = '#f8f8f8';
+                        previewElement.style.padding = '10px';
+                        previewElement.style.borderRadius = '4px';
+                        previewElement.style.marginBottom = '10px';
                     }
+                    
+                    fileListContainer.appendChild(previewElement);
                 }
+                
                 reader.readAsDataURL(file);
             }
         }

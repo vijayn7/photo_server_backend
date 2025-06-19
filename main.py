@@ -391,3 +391,81 @@ async def delete_photo(
         raise HTTPException(status_code=404, detail="Photo not found or permission denied")
     
     return {"message": "Photo deleted successfully"}
+
+@app.post("/upload-batch")
+async def upload_batch_files(
+    request: Request,
+    files: List[UploadFile] = File(..., description="Multiple files to upload. Maximum size per file is 10GB"),
+    token: str = None
+):
+    """
+    Upload multiple files in a batch operation
+    """
+    # First, check if token was provided in query parameters
+    if token is None:
+        # Check if token is in the Authorization header
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[1]
+    
+    # Authenticate using token
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        user = get_user(username)
+        if not user or user.disabled:
+            raise HTTPException(status_code=401, detail="Invalid user")
+        
+        # Process all files
+        results = []
+        errors = []
+        
+        for file in files:
+            try:
+                # Check file size
+                MAX_SIZE = 10 * 1024 * 1024 * 1024  # 10GB
+                
+                print(f"Processing batch upload for file: {file.filename}")
+                
+                # Make sure we have a file to process
+                if not file or not hasattr(file, 'file'):
+                    raise ValueError(f"No file was provided or file object is invalid for {file.filename}")
+                
+                # Process the file upload using photo_utils
+                file_metadata = photo_utils.save_uploaded_file(file.file, file.filename, username)
+                results.append({
+                    "filename": file_metadata["filename"],
+                    "status": "success",
+                    "metadata": file_metadata
+                })
+                
+            except Exception as e:
+                print(f"Error uploading file {file.filename}: {str(e)}")
+                errors.append({
+                    "filename": file.filename,
+                    "status": "error",
+                    "error": str(e)
+                })
+        
+        # Return batch upload results
+        return {
+            "success": len(errors) == 0,
+            "total_files": len(files),
+            "successful_uploads": len(results),
+            "failed_uploads": len(errors),
+            "results": results,
+            "errors": errors
+        }
+            
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token signature")
