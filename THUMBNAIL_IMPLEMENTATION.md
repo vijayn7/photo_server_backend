@@ -15,6 +15,8 @@
 - `ensure_thumbnails_dir(username)` - Creates user thumbnail directory
 - `generate_thumbnail(username, image_path, size)` - Generates 256px thumbnails
 - `get_thumbnail_path(username, filename)` - Gets thumbnail file path
+- `delete_thumbnail(username, filename)` - **NEW**: Deletes thumbnail files
+- **Enhanced `delete_file()`** - Now automatically deletes thumbnails
 
 ### 🌐 **New API Endpoint**
 - **`GET /thumbnails/{filename}`** - Serves thumbnail images

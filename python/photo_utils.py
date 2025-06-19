@@ -378,6 +378,12 @@ def delete_file(filename: str, username: Optional[str] = None, is_admin: bool = 
         if os.path.exists(file_path):
             os.remove(file_path)
         
+        # Also delete the thumbnail if it exists
+        # Extract username from unique_key or file_info
+        file_username = file_info.get("uploaded_by") or file_info.get("folder")
+        if file_username and is_image(filename):
+            delete_thumbnail(file_username, filename)
+        
         # Remove from metadata
         metadata.pop(unique_key, None)
         save_metadata(metadata)
@@ -615,3 +621,26 @@ def get_thumbnail_path(username: str, filename: str) -> Optional[str]:
     thumb_path = os.path.join(thumbnails_dir, filename)
     
     return thumb_path if os.path.exists(thumb_path) else None
+
+def delete_thumbnail(username: str, filename: str) -> bool:
+    """
+    Delete a thumbnail file if it exists
+    
+    Args:
+        username (str): Username of the file owner
+        filename (str): Name of the original file
+        
+    Returns:
+        bool: True if thumbnail was deleted or didn't exist, False if deletion failed
+    """
+    try:
+        thumbnail_path = get_thumbnail_path(username, filename)
+        if thumbnail_path and os.path.exists(thumbnail_path):
+            os.remove(thumbnail_path)
+            logging.info(f"Deleted thumbnail for {filename}: {thumbnail_path}")
+            return True
+        # If thumbnail doesn't exist, that's still considered success
+        return True
+    except Exception as e:
+        logging.error(f"Failed to delete thumbnail for {filename}: {str(e)}")
+        return False

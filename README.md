@@ -187,11 +187,14 @@ A robust FastAPI-based backend service for storing, managing, and serving photos
   ```
 
 #### `DELETE /photos/{filename}`
-- **Purpose**: Delete a photo
+- **Purpose**: Delete a photo and its thumbnail
 - **Authentication**: Requires valid token
 - **Parameters**:
   - `filename`: Name of the file to delete
 - **Response**: JSON object confirming deletion
+- **Notes**:
+  - Automatically deletes associated thumbnail if it exists
+  - Only removes thumbnails for image files
 - **Example**:
   ```bash
   curl -X DELETE "http://localhost:8000/photos/example.jpg" \
@@ -199,11 +202,14 @@ A robust FastAPI-based backend service for storing, managing, and serving photos
   ```
 
 #### `POST /photos/delete-multiple`
-- **Purpose**: Delete multiple photos in bulk
+- **Purpose**: Delete multiple photos and their thumbnails in bulk
 - **Authentication**: Requires valid token
 - **Parameters**:
   - JSON object with `filenames` array
 - **Response**: JSON object with deletion results
+- **Notes**:
+  - Automatically deletes associated thumbnails for image files
+  - Returns detailed success/failure information for each file
 - **Example**:
   ```bash
   curl -X POST "http://localhost:8000/photos/delete-multiple" \
