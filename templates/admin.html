@@ -204,54 +204,117 @@
         /* Users table styles */
         #users-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             margin-top: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         
         #users-table th, #users-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
+            border: none;
+            padding: 12px 16px;
             text-align: left;
         }
         
-        #users-table tr:nth-child(even) {
-            background-color: #f2f2f2;
+        #users-table th {
+            padding-top: 14px;
+            padding-bottom: 14px;
+            background-color: #2c2c4a;
+            color: white;
+            font-weight: 500;
+            position: relative;
         }
         
-        #users-table th {
-            padding-top: 12px;
-            padding-bottom: 12px;
-            background-color: #4CAF50;
-            color: white;
+        #users-table td {
+            border-bottom: 1px solid #3d3d3d;
+        }
+        
+        #users-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        #users-table tr:nth-child(even) {
+            background-color: #262626;
+        }
+        
+        #users-table tr:nth-child(odd) {
+            background-color: #2d2d2d;
         }
         
         #users-table tr:hover {
-            background-color: #ddd;
+            background-color: #363636;
         }
         
         .admin-btn {
-            padding: 5px 8px;
+            padding: 8px 12px;
             border: none;
-            border-radius: 3px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .admin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
         
         .grant-admin {
-            background-color: #2196F3;
+            background-color: #3a86ff;
+            border: 1px solid #3378e8;
         }
         
         .grant-admin:hover {
-            background-color: #0b7dda;
+            background-color: #4a90ff;
         }
         
         .revoke-admin {
-            background-color: #ff9800;
+            background-color: #ff9e00;
+            border: 1px solid #eb9200;
         }
         
         .revoke-admin:hover {
-            background-color: #e68a00;
+            background-color: #ffac2f;
+        }
+        
+        /* Status badges for users table */
+        .status-badge {
+            display: inline-block; 
+            padding: 5px 10px; 
+            border-radius: 12px; 
+            font-size: 0.85rem; 
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .status-active {
+            background-color: #2a5535; 
+            color: #9effaa;
+        }
+        
+        .status-disabled {
+            background-color: #552a2a; 
+            color: #ff9e9e;
+        }
+        
+        .status-admin {
+            background-color: #2a374e; 
+            color: #9ebaff;
+        }
+        
+        .status-not-admin {
+            background-color: #4e4e4e; 
+            color: #d7d7d7;
+        }
+        
+        .super-admin {
+            font-style: italic;
+            color: #9ebaff;
         }
         .selected-files-list {
             margin-top: 15px;
@@ -320,6 +383,41 @@
         .remove-file-btn:hover {
             background-color: #d32f2f;
         }
+        
+        /* Status badges for users table */
+        .status-badge {
+            display: inline-block; 
+            padding: 5px 10px; 
+            border-radius: 12px; 
+            font-size: 0.85rem; 
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .status-active {
+            background-color: #2a5535; 
+            color: #9effaa;
+        }
+        
+        .status-disabled {
+            background-color: #552a2a; 
+            color: #ff9e9e;
+        }
+        
+        .status-admin {
+            background-color: #2a374e; 
+            color: #9ebaff;
+        }
+        
+        .status-not-admin {
+            background-color: #4e4e4e; 
+            color: #d7d7d7;
+        }
+        
+        .super-admin {
+            font-style: italic;
+            color: #9ebaff;
+        }
     </style>
 </head>
 <body>
@@ -366,14 +464,14 @@
         
         <div class="files-section">
             <h2>Uploaded Files</h2>
-            <input type="text" id="fileSearchInput" placeholder="Search files..." style="padding: 8px; margin-bottom: 10px; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
+            <input type="text" id="fileSearchInput" placeholder="Search files..." style="padding: 12px; margin-bottom: 16px; width: 100%; border: 1px solid #3d3d3d; border-radius: 6px; background-color: #2d2d2d; color: #fff; font-family: inherit; transition: border-color 0.3s, box-shadow 0.3s;">
             
             <!-- Bulk actions bar -->
-            <div class="bulk-actions" id="bulkActions">
-                <span class="selection-count" id="selectionCount">0 files selected</span>
-                <button class="select-all-btn" onclick="selectAllFiles()">Select All</button>
-                <button class="select-all-btn" onclick="deselectAllFiles()">Deselect All</button>
-                <button class="bulk-delete-btn" onclick="bulkDeleteFiles()">Delete Selected</button>
+            <div class="bulk-actions" id="bulkActions" style="background-color: #2c2c4a; border: 1px solid #5e60ce;">
+                <span class="selection-count" id="selectionCount" style="color: #e0e0e0;">0 files selected</span>
+                <button class="select-all-btn" onclick="selectAllFiles()" style="background-color: #3a86ff;">Select All</button>
+                <button class="select-all-btn" onclick="deselectAllFiles()" style="background-color: #4e4e4e;">Deselect All</button>
+                <button class="bulk-delete-btn" onclick="bulkDeleteFiles()" style="background-color: #cf6679;">Delete Selected</button>
             </div>
             
             <div class="file-list">
@@ -412,14 +510,14 @@
         
         <div class="files-section" style="margin-top: 2rem;">
             <h2>Create New User</h2>
-            <form id="createUserForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 600px;">
-                <input type="text" id="newUsername" placeholder="Username" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <input type="email" id="newEmail" placeholder="Email" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <input type="text" id="newFullName" placeholder="Full Name" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <input type="password" id="newPassword" placeholder="Password" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <form id="createUserForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 600px;">
+                <input type="text" id="newUsername" placeholder="Username" required style="padding: 12px; border: 1px solid #3d3d3d; border-radius: 6px; background-color: #2d2d2d; color: #fff; font-family: inherit; transition: border-color 0.3s, box-shadow 0.3s;">
+                <input type="email" id="newEmail" placeholder="Email" required style="padding: 12px; border: 1px solid #3d3d3d; border-radius: 6px; background-color: #2d2d2d; color: #fff; font-family: inherit; transition: border-color 0.3s, box-shadow 0.3s;">
+                <input type="text" id="newFullName" placeholder="Full Name" required style="padding: 12px; border: 1px solid #3d3d3d; border-radius: 6px; background-color: #2d2d2d; color: #fff; font-family: inherit; transition: border-color 0.3s, box-shadow 0.3s;">
+                <input type="password" id="newPassword" placeholder="Password" required style="padding: 12px; border: 1px solid #3d3d3d; border-radius: 6px; background-color: #2d2d2d; color: #fff; font-family: inherit; transition: border-color 0.3s, box-shadow 0.3s;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <label style="display: flex; align-items: center; gap: 5px;">
-                        <input type="checkbox" id="newUserAdmin"> Admin User
+                    <label style="display: flex; align-items: center; gap: 8px; color: #e0e0e0; cursor: pointer;">
+                        <input type="checkbox" id="newUserAdmin" style="width: 18px; height: 18px; accent-color: #5e60ce;"> Admin User
                     </label>
                 </div>
                 <button type="submit" style="padding: 10px 18px; background-color: #5e60ce; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.3s;">Create User</button>
@@ -428,7 +526,7 @@
         
         <div class="files-section" style="margin-top: 2rem;">
             <h2>Registered Users</h2>
-            <input type="text" id="userSearchInput" placeholder="Search users..." style="padding: 8px; margin-bottom: 10px; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
+            <input type="text" id="userSearchInput" placeholder="Search users..." style="padding: 12px; margin-bottom: 16px; width: 100%; border: 1px solid #3d3d3d; border-radius: 6px; background-color: #2d2d2d; color: #fff; font-family: inherit; transition: border-color 0.3s, box-shadow 0.3s;">
             <table id="users-table">
                 <thead>
                     <tr>
@@ -448,8 +546,16 @@
                         <td>{{ username }}</td>
                         <td>{{ user_info.full_name }}</td>
                         <td>{{ user_info.email }}</td>
-                        <td>{% if user_info.disabled %}Disabled{% else %}Active{% endif %}</td>
-                        <td>{% if user_info.admin %}Yes{% else %}No{% endif %}</td>
+                        <td>
+                            <span class="status-badge {% if user_info.disabled %}status-disabled{% else %}status-active{% endif %}">
+                                {% if user_info.disabled %}Disabled{% else %}Active{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge {% if user_info.admin %}status-admin{% else %}status-not-admin{% endif %}">
+                                {% if user_info.admin %}Yes{% else %}No{% endif %}
+                            </span>
+                        </td>
                         {% if user.username == admin_username and username != admin_username %}
                         <td>
                             {% if not user_info.admin %}
@@ -464,7 +570,7 @@
                         </td>
                         {% elif user.username == admin_username and username == admin_username %}
                         <td>
-                            <em>Super Admin</em>
+                            <em class="super-admin">Super Admin</em>
                         </td>
                         {% endif %}
                     </tr>
