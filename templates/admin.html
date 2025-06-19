@@ -400,6 +400,22 @@
         </div>
         
         <div class="files-section" style="margin-top: 2rem;">
+            <h2>Create New User</h2>
+            <form id="createUserForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 600px;">
+                <input type="text" id="newUsername" placeholder="Username" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <input type="email" id="newEmail" placeholder="Email" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <input type="text" id="newFullName" placeholder="Full Name" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <input type="password" id="newPassword" placeholder="Password" required style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="newUserAdmin"> Admin User
+                    </label>
+                </div>
+                <button type="submit" style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Create User</button>
+            </form>
+        </div>
+        
+        <div class="files-section" style="margin-top: 2rem;">
             <h2>Registered Users</h2>
             <input type="text" id="userSearchInput" placeholder="Search users..." style="padding: 8px; margin-bottom: 10px; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
             <table id="users-table">
@@ -938,6 +954,63 @@
                 alert('An error occurred while deleting files: ' + error);
             }
         }
+        
+        // Create user functionality
+        document.getElementById('createUserForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('newUsername').value.trim();
+            const email = document.getElementById('newEmail').value.trim();
+            const fullName = document.getElementById('newFullName').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const isAdmin = document.getElementById('newUserAdmin').checked;
+            
+            if (!username || !email || !fullName || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Authentication token not found. Please log in again.');
+                window.location.href = '/';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/create-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        username,
+                        email,
+                        full_name: fullName,
+                        password,
+                        admin: isAdmin
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`User '${username}' created successfully${isAdmin ? ' with admin privileges' : ''}`);
+                    // Reset the form
+                    document.getElementById('createUserForm').reset();
+                    // Reload the page to show the new user in the table
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    alert('Error creating user: ' + (result.detail || JSON.stringify(result)));
+                }
+            } catch (error) {
+                console.error('Error creating user:', error);
+                alert('An error occurred while creating the user: ' + error.message);
+            }
+        });
     </script>
 </body>
 </html>

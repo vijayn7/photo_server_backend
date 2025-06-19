@@ -257,31 +257,47 @@ async def upload_file(
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token signature")
 
-@app.get("/register", response_class=HTMLResponse)
-async def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+# Remove the public registration endpoints - these will be deleted
 
 class UserCreate(BaseModel):
     username: str
     email: str
     full_name: str
     password: str
+    admin: Optional[bool] = False
 
-@app.post("/register")
-async def register_user(user_data: UserCreate):
+@app.post("/admin/create-user")
+async def admin_create_user(
+    user_data: UserCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Create a new user - only accessible by admins
+    """
+    # Check if the current user is an admin
+    if not current_user.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create new users"
+        )
+    
     success = db_utils.create_user(
         username=user_data.username,
         email=user_data.email,
         full_name=user_data.full_name,
         password=user_data.password,
-        admin=False
+        admin=user_data.admin
     )
     
     if not success:
         raise HTTPException(status_code=400, detail="Username already exists")
     
     # Return success message
-    return {"message": "User created successfully"}
+    return {
+        "success": True,
+        "message": f"User '{user_data.username}' created successfully",
+        "admin": user_data.admin
+    }
 
 # Add route to get all users (for admin purposes only)
 @app.get("/users")
@@ -305,36 +321,6 @@ async def update_admin_status(request: AdminUpdateRequest, current_user: User = 
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={"success": False, "message": f"Only {db_utils.ADMIN_USERNAME} can update admin privileges"}
-        )
-    
-    # Call the db_utils function to update admin status
-    if request.admin_status:
-        success = db_utils.grant_admin_privileges(current_user.username, request.target_username)
-    else:
-        success = db_utils.revoke_admin_privileges(current_user.username, request.target_username)
-    
-    if success:
-        return {"success": True, "message": f"Admin status for {request.target_username} has been updated"}
-    else:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"success": False, "message": "Failed to update admin status"}
-        )
-
-class AdminUpdateRequest(BaseModel):
-    target_username: str
-    admin_status: bool
-
-@app.post("/api/update-admin-status")
-async def update_admin_status(request: AdminUpdateRequest, current_user: User = Depends(get_current_active_user)):
-    """
-    Update the admin status of a user. Only 'vijayn7' can update admin status.
-    """
-    # Check if the current user is vijayn7
-    if current_user.username != "vijayn7":
-        return JSONResponse(
-            status_code=status.HTTP_403_FORBIDDEN,
-            content={"success": False, "message": "Only vijayn7 can update admin privileges"}
         )
     
     # Call the db_utils function to update admin status
