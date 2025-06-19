@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -413,6 +413,49 @@ async def delete_photo(
         raise HTTPException(status_code=404, detail="Photo not found or permission denied")
     
     return {"message": "Photo deleted successfully"}
+
+@app.get("/thumbnails/{filename}")
+async def get_thumbnail(
+    filename: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get thumbnail for a photo
+    """
+    username = current_user.username
+    
+    # Get thumbnail path using photo_utils
+    thumbnail_path = photo_utils.get_thumbnail_path(username, filename)
+    
+    # Check if thumbnail exists
+    if not thumbnail_path:
+        # Try to generate thumbnail if it doesn't exist and it's an image
+        if photo_utils.is_image(filename):
+            # Get the original file path
+            user_folder = photo_utils.get_user_folder_path(username)
+            original_file_path = os.path.join(user_folder, filename)
+            
+            # Check if original file exists
+            if os.path.exists(original_file_path):
+                # Generate thumbnail
+                thumbnail_path = photo_utils.generate_thumbnail(username, original_file_path)
+                if not thumbnail_path:
+                    raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
+            else:
+                raise HTTPException(status_code=404, detail="Original file not found")
+        else:
+            raise HTTPException(status_code=404, detail="Thumbnail not available for this file type")
+    
+    # Verify the thumbnail file exists
+    if not os.path.exists(thumbnail_path):
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    
+    # Return the thumbnail file
+    return FileResponse(
+        thumbnail_path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=3600"}  # Cache for 1 hour
+    )
 
 class BulkDeleteRequest(BaseModel):
     filenames: List[str]

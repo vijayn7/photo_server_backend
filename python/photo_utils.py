@@ -11,11 +11,14 @@ import shutil
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 import json
+from PIL import Image, ImageOps
+import logging
 
 # Default configuration
 UPLOADS_DIR = "/mnt/photos"
 GLOBAL_FOLDER = "global"
 METADATA_FILE = os.path.join(UPLOADS_DIR, "metadata.json")
+DEFAULT_THUMBNAIL_SIZE = 256  # Default thumbnail size in pixels
 
 def format_file_size(size_bytes: int) -> str:
     """
@@ -204,6 +207,22 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
     unique_key = f"{username}/{filename}"
     metadata[unique_key] = file_metadata
     save_metadata(metadata)
+    
+    # Generate thumbnail if it's an image
+    if is_image(filename):
+        try:
+            thumbnail_path = generate_thumbnail(username, file_path)
+            if thumbnail_path:
+                print(f"Successfully generated thumbnail for {filename}")
+                file_metadata["has_thumbnail"] = True
+            else:
+                print(f"Failed to generate thumbnail for {filename}")
+                file_metadata["has_thumbnail"] = False
+        except Exception as thumb_error:
+            print(f"Error generating thumbnail for {filename}: {str(thumb_error)}")
+            file_metadata["has_thumbnail"] = False
+    else:
+        file_metadata["has_thumbnail"] = False
     
     return file_metadata
 
@@ -487,3 +506,112 @@ def get_all_user_accessible_photos(username: str) -> List[Dict[str, Any]]:
     # Sort by upload date (newest first)
     result.sort(key=lambda x: x.get("upload_date", ""), reverse=True)
     return result
+
+def is_image(filename: str) -> bool:
+    """
+    Check if a file is an image based on its extension
+    
+    Args:
+        filename (str): Name of the file to check
+        
+    Returns:
+        bool: True if file is an image, False otherwise
+    """
+    if not filename:
+        return False
+    
+    # Get file extension and normalize
+    ext = filename.lower().split('.')[-1] if '.' in filename else ''
+    
+    # List of supported image extensions
+    image_extensions = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'tif'}
+    
+    return ext in image_extensions
+
+def ensure_thumbnails_dir(username: str) -> str:
+    """
+    Ensure the thumbnails directory exists for a user
+    
+    Args:
+        username (str): Username to create thumbnails directory for
+        
+    Returns:
+        str: Path to the thumbnails directory
+    """
+    thumbnails_dir = os.path.join(UPLOADS_DIR, username, "thumbnails")
+    os.makedirs(thumbnails_dir, exist_ok=True)
+    return thumbnails_dir
+
+def generate_thumbnail(username: str, image_path: str, thumbnail_size: int = None) -> Optional[str]:
+    """
+    Generate a thumbnail for an image file
+    
+    Args:
+        username (str): Username of the file owner
+        image_path (str): Full path to the original image
+        thumbnail_size (int): Maximum width/height for thumbnail (default: DEFAULT_THUMBNAIL_SIZE)
+        
+    Returns:
+        str: Path to generated thumbnail, or None if generation failed
+    """
+    if thumbnail_size is None:
+        thumbnail_size = DEFAULT_THUMBNAIL_SIZE
+    try:
+        # Ensure thumbnails directory exists
+        thumbnails_dir = ensure_thumbnails_dir(username)
+        
+        # Get original filename
+        filename = os.path.basename(image_path)
+        
+        # Create thumbnail path
+        thumb_path = os.path.join(thumbnails_dir, filename)
+        
+        # Skip if thumbnail already exists
+        if os.path.exists(thumb_path):
+            logging.info(f"Thumbnail already exists for {filename}")
+            return thumb_path
+        
+        # Open and process the image
+        with Image.open(image_path) as img:
+            # Handle images with EXIF orientation data
+            img = ImageOps.exif_transpose(img)
+            
+            # Convert to RGB if necessary (handles RGBA, P mode images)
+            if img.mode in ('RGBA', 'LA', 'P'):
+                # Create a white background for transparency
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # Create thumbnail maintaining aspect ratio
+            img.thumbnail((thumbnail_size, thumbnail_size), Image.Resampling.LANCZOS)
+            
+            # Save thumbnail as JPEG with good quality
+            img.save(thumb_path, 'JPEG', quality=85, optimize=True)
+        
+        logging.info(f"Generated thumbnail for {filename}: {thumb_path}")
+        return thumb_path
+        
+    except Exception as e:
+        logging.error(f"Failed to generate thumbnail for {image_path}: {str(e)}")
+        return None
+
+def get_thumbnail_path(username: str, filename: str) -> Optional[str]:
+    """
+    Get the path to a thumbnail file if it exists
+    
+    Args:
+        username (str): Username of the file owner
+        filename (str): Name of the original file
+        
+    Returns:
+        str: Path to thumbnail if it exists, None otherwise
+    """
+    thumbnails_dir = os.path.join(UPLOADS_DIR, username, "thumbnails")
+    thumb_path = os.path.join(thumbnails_dir, filename)
+    
+    return thumb_path if os.path.exists(thumb_path) else None

@@ -16,6 +16,7 @@ A robust FastAPI-based backend service for storing, managing, and serving photos
 - **Global Shared Folder** - Common area accessible to all users
 - **File Metadata** - Automatically tracks file information including size, type, and upload date
 - **Image & Video Support** - Special handling for image and video file types
+- **Thumbnail Generation** - Automatic thumbnail creation for images (256px, cached)
 
 ### Web Interface
 - **Admin Dashboard** - Complete administrative control panel
@@ -36,6 +37,7 @@ A robust FastAPI-based backend service for storing, managing, and serving photos
 - PyJWT - JSON Web Token implementation
 - Jinja2 - Template engine for HTML rendering
 - Python-multipart - For handling form data and file uploads
+- Pillow - Image processing library for thumbnail generation
 
 ## Installation
 
@@ -212,6 +214,23 @@ A robust FastAPI-based backend service for storing, managing, and serving photos
     }'
   ```
 
+#### `GET /thumbnails/{filename}`
+- **Purpose**: Get a thumbnail image for a photo
+- **Authentication**: Requires valid token
+- **Parameters**:
+  - `filename`: Name of the image file to get thumbnail for
+- **Response**: JPEG thumbnail image (256px max width/height)
+- **Notes**: 
+  - Only works for image files (jpg, jpeg, png, webp, gif, bmp, tiff)
+  - Automatically generates thumbnail if it doesn't exist
+  - Thumbnails are cached and served with 1-hour cache headers
+- **Example**:
+  ```bash
+  curl -X GET "http://localhost:8000/thumbnails/example.jpg" \
+    -H "Authorization: Bearer your_access_token" \
+    --output thumbnail.jpg
+  ```
+
 ### Web Interface Routes
 
 #### `GET /`
@@ -234,6 +253,7 @@ A robust FastAPI-based backend service for storing, managing, and serving photos
 - `/mnt/photos/` - Main uploads directory
   - `/mnt/photos/global/` - Global shared folder accessible to all users
   - `/mnt/photos/{username}/` - User-specific folders for private uploads
+    - `/mnt/photos/{username}/thumbnails/` - Auto-generated thumbnails for images
   - `/mnt/photos/metadata.json` - File containing metadata for all uploads
 
 ## Security Features
