@@ -14,6 +14,7 @@ import json
 
 # Default configuration
 UPLOADS_DIR = "/mnt/photos"
+GLOBAL_FOLDER = "global"
 METADATA_FILE = os.path.join(UPLOADS_DIR, "metadata.json")
 
 def format_file_size(size_bytes: int) -> str:
@@ -42,11 +43,43 @@ def format_file_size(size_bytes: int) -> str:
     else:
         return f"{size:.2f} {units[i]}"
 
+def get_user_folder_path(username: str) -> str:
+    """
+    Get the folder path for a specific user
+    
+    Args:
+        username (str): Username
+        
+    Returns:
+        str: Path to user's folder
+    """
+    return os.path.join(UPLOADS_DIR, username)
+
+def get_global_folder_path() -> str:
+    """
+    Get the path to the global shared folder
+    
+    Returns:
+        str: Path to global folder
+    """
+    return os.path.join(UPLOADS_DIR, GLOBAL_FOLDER)
+
+def ensure_user_folder(username: str):
+    """
+    Ensure that a user's folder exists
+    
+    Args:
+        username (str): Username to create folder for
+    """
+    user_folder = get_user_folder_path(username)
+    os.makedirs(user_folder, exist_ok=True)
+
 def ensure_upload_dir():
     """
-    Ensures that the uploads directory exists
+    Ensures that the uploads directory and global folder exist
     """
     os.makedirs(UPLOADS_DIR, exist_ok=True)
+    os.makedirs(get_global_folder_path(), exist_ok=True)
     if not os.path.exists(METADATA_FILE):
         with open(METADATA_FILE, "w") as f:
             json.dump({}, f)
@@ -90,18 +123,22 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
         dict: Metadata for the saved file
     """
     ensure_upload_dir()
+    ensure_user_folder(username)
+    
+    # Get user's folder path
+    user_folder = get_user_folder_path(username)
     
     # Generate a unique filename if needed
-    if os.path.exists(os.path.join(UPLOADS_DIR, filename)):
+    if os.path.exists(os.path.join(user_folder, filename)):
         name, ext = os.path.splitext(filename)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{name}_{timestamp}{ext}"
     
     # Save the file with proper error handling
-    file_path = os.path.join(UPLOADS_DIR, filename)
+    file_path = os.path.join(user_folder, filename)
     try:
         # Print some debug info
-        print(f"Starting upload of file: {filename} by user: {username}")
+        print(f"Starting upload of file: {filename} by user: {username} to {user_folder}")
         
         # Larger chunk size for better performance with large files
         chunk_size = 4 * 1024 * 1024  # 4MB chunks for better handling of large files
@@ -149,7 +186,7 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
         
         raise IOError(f"File upload failed: {error_details}") from e
     
-    # Update metadata
+    # Update metadata with folder info
     metadata = load_metadata()
     file_metadata = {
         "filename": filename,
@@ -157,11 +194,15 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
         "uploaded_by": username,
         "upload_date": datetime.now().isoformat(),
         "file_size": file_size,
-        "size": format_file_size(file_size),  # Add formatted size attribute
-        "file_type": os.path.splitext(filename)[1].lower()[1:],  # Extension without dot
+        "size": format_file_size(file_size),
+        "file_type": os.path.splitext(filename)[1].lower()[1:],
+        "folder": username,  # Track which folder the file is in
+        "file_path": os.path.join(username, filename)  # Relative path from photos root
     }
     
-    metadata[filename] = file_metadata
+    # Use a unique key that includes the folder to avoid conflicts
+    unique_key = f"{username}/{filename}"
+    metadata[unique_key] = file_metadata
     save_metadata(metadata)
     
     return file_metadata
@@ -179,40 +220,76 @@ def get_all_files(username: Optional[str] = None) -> List[Dict[str, Any]]:
     metadata = load_metadata()
     metadata_updated = False
     
-    # Check for files that exist on disk but not in metadata
-    actual_files = set(os.listdir(UPLOADS_DIR))
-    # Remove metadata.json from the list
-    if "metadata.json" in actual_files:
-        actual_files.remove("metadata.json")
+    # Scan all user folders and global folder for files
+    ensure_upload_dir()
+    
+    # Get all directories in the uploads folder (user folders + global)
+    try:
+        all_items = os.listdir(UPLOADS_DIR)
+        user_folders = [item for item in all_items if os.path.isdir(os.path.join(UPLOADS_DIR, item)) and item != "lost+found"]
+    except OSError:
+        user_folders = []
+    
+    # Track all actual files with their folder paths
+    actual_files = set()
+    for folder in user_folders:
+        folder_path = os.path.join(UPLOADS_DIR, folder)
+        try:
+            files_in_folder = os.listdir(folder_path)
+            for file in files_in_folder:
+                file_path = os.path.join(folder_path, file)
+                if os.path.isfile(file_path):
+                    # Use folder/filename as unique key
+                    unique_key = f"{folder}/{file}"
+                    actual_files.add(unique_key)
+        except OSError:
+            continue
     
     metadata_files = set(metadata.keys())
     
     # Add missing files to metadata
-    for filename in actual_files - metadata_files:
-        file_path = os.path.join(UPLOADS_DIR, filename)
+    for unique_key in actual_files - metadata_files:
+        folder, filename = unique_key.split("/", 1)
+        file_path = os.path.join(UPLOADS_DIR, folder, filename)
         if os.path.isfile(file_path):
             file_size = os.path.getsize(file_path)
-            metadata[filename] = {
+            metadata[unique_key] = {
                 "filename": filename,
                 "original_name": filename,
-                "uploaded_by": "unknown",
+                "uploaded_by": folder if folder != GLOBAL_FOLDER else "unknown",
                 "upload_date": datetime.fromtimestamp(os.path.getctime(file_path)).isoformat(),
                 "file_size": file_size,
                 "size": format_file_size(file_size),
                 "file_type": os.path.splitext(filename)[1].lower()[1:],
+                "folder": folder,
+                "file_path": unique_key
             }
             metadata_updated = True
     
-    # Update existing metadata entries to add the size attribute if it's missing
-    for filename in metadata_files.intersection(actual_files):
-        if "size" not in metadata[filename] and "file_size" in metadata[filename]:
-            file_size = metadata[filename]["file_size"]
-            metadata[filename]["size"] = format_file_size(file_size)
+    # Update existing metadata entries to add missing attributes
+    for unique_key in metadata_files.intersection(actual_files):
+        file_metadata = metadata[unique_key]
+        updated = False
+        
+        # Add size attribute if missing
+        if "size" not in file_metadata and "file_size" in file_metadata:
+            file_metadata["size"] = format_file_size(file_metadata["file_size"])
+            updated = True
+        
+        # Add folder and file_path if missing (for backward compatibility)
+        if "folder" not in file_metadata or "file_path" not in file_metadata:
+            if "/" in unique_key:
+                folder, filename = unique_key.split("/", 1)
+                file_metadata["folder"] = folder
+                file_metadata["file_path"] = unique_key
+                updated = True
+        
+        if updated:
             metadata_updated = True
     
     # Remove metadata for files that no longer exist
-    for filename in metadata_files - actual_files:
-        metadata.pop(filename, None)
+    for unique_key in metadata_files - actual_files:
+        metadata.pop(unique_key, None)
         metadata_updated = True
     
     # Save updated metadata
@@ -221,8 +298,9 @@ def get_all_files(username: Optional[str] = None) -> List[Dict[str, Any]]:
     
     # Filter by username if provided
     result = []
-    for filename, info in metadata.items():
-        if username is None or info.get("uploaded_by") == username:
+    for unique_key, info in metadata.items():
+        # If username filter is provided, only include files from that user's folder
+        if username is None or info.get("uploaded_by") == username or info.get("folder") == username:
             result.append(info)
     
     # Sort by upload date (newest first)
@@ -235,7 +313,7 @@ def delete_file(filename: str, username: Optional[str] = None, is_admin: bool = 
     Delete a file and its metadata
     
     Args:
-        filename (str): Filename to delete
+        filename (str): Filename or unique key (folder/filename) to delete
         username (str, optional): If provided, only delete if uploader matches
         is_admin (bool, optional): If True, allow deletion regardless of uploader
         
@@ -244,39 +322,80 @@ def delete_file(filename: str, username: Optional[str] = None, is_admin: bool = 
     """
     metadata = load_metadata()
     
+    # Handle both old format (just filename) and new format (folder/filename)
+    unique_key = filename
+    if "/" not in filename and username:
+        # If no folder specified, assume it's in the user's folder
+        unique_key = f"{username}/{filename}"
+    
     # Check if file exists in metadata
-    if filename not in metadata:
-        return False
+    if unique_key not in metadata:
+        # Try to find the file in any folder if admin
+        if is_admin:
+            for key in metadata.keys():
+                if key.endswith(f"/{filename}"):
+                    unique_key = key
+                    break
+            else:
+                return False
+        else:
+            return False
+    
+    file_info = metadata[unique_key]
     
     # Check username if provided and user is not an admin
-    if not is_admin and username is not None and metadata[filename].get("uploaded_by") != username:
-        return False
+    if not is_admin and username is not None:
+        if file_info.get("uploaded_by") != username and file_info.get("folder") != username:
+            return False
     
-    # Delete the file
-    file_path = os.path.join(UPLOADS_DIR, filename)
+    # Get the actual file path
+    if "file_path" in file_info:
+        file_path = os.path.join(UPLOADS_DIR, file_info["file_path"])
+    else:
+        # Fallback for old metadata format
+        file_path = os.path.join(UPLOADS_DIR, unique_key)
+    
     try:
         if os.path.exists(file_path):
             os.remove(file_path)
         
         # Remove from metadata
-        metadata.pop(filename, None)
+        metadata.pop(unique_key, None)
         save_metadata(metadata)
         return True
     except Exception:
         return False
 
-def get_file_info(filename: str) -> Optional[Dict[str, Any]]:
+def get_file_info(filename: str, username: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Get metadata for a specific file
     
     Args:
-        filename (str): Filename to get info for
+        filename (str): Filename or unique key (folder/filename) to get info for
+        username (str, optional): Username to help locate the file
         
     Returns:
         dict: File metadata or None if not found
     """
     metadata = load_metadata()
-    return metadata.get(filename)
+    
+    # Handle both old format (just filename) and new format (folder/filename)
+    unique_key = filename
+    if "/" not in filename and username:
+        # If no folder specified, assume it's in the user's folder
+        unique_key = f"{username}/{filename}"
+    
+    # Try the constructed key first
+    if unique_key in metadata:
+        return metadata[unique_key]
+    
+    # If not found and we only have a filename, search all folders
+    if "/" not in filename:
+        for key, file_info in metadata.items():
+            if key.endswith(f"/{filename}"):
+                return file_info
+    
+    return None
 
 def is_image_file(filename: str) -> bool:
     """

@@ -41,8 +41,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="/mnt/photos"), name="uploads")
 templates = Jinja2Templates(directory="templates")
 
-# Create photos directory if it doesn't exist
+# Create photos directory and global folder if they don't exist
 os.makedirs("/mnt/photos", exist_ok=True)
+os.makedirs("/mnt/photos/global", exist_ok=True)
 
 # Use the password hashing context from db_utils
 pwd_context = db_utils.pwd_context
