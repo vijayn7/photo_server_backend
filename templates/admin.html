@@ -66,6 +66,15 @@
             object-position: center;
             border-radius: 6px;
             margin-bottom: 0.8rem;
+            transition: opacity 0.3s ease;
+        }
+        .file-item img:not(.thumbnail-loaded) {
+            filter: blur(1px);
+            opacity: 0.7;
+        }
+        .file-item img.thumbnail-loaded {
+            filter: none;
+            opacity: 1;
         }
         .file-item video {
             width: 100%;
@@ -529,7 +538,11 @@
                     <input type="checkbox" class="file-checkbox" onchange="updateBulkActions()">
                     {% if file.file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] %}
                     <a href="/uploads/{{ file.file_path }}" target="_blank">
-                        <img src="/uploads/{{ file.file_path }}" alt="{{ file.filename }}">
+                        <img class="file-image" 
+                             data-filename="{{ file.filename }}"
+                             src="/uploads/{{ file.file_path }}" 
+                             alt="{{ file.filename }}"
+                             title="Click to view full resolution">
                     </a>
                     {% elif file.file_type in ['mp4', 'webm', 'ogg', 'mov', 'avi'] %}
                     <a href="/uploads/{{ file.file_path }}" target="_blank">
@@ -649,7 +662,43 @@
                 }
                 return originalFetch(url, options);
             };
+            
+            // Load thumbnails after page loads
+            loadThumbnails();
         };
+        
+        async function loadThumbnails() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            const imageElements = document.querySelectorAll('.file-image[data-filename]');
+            
+            for (const img of imageElements) {
+                const filename = img.getAttribute('data-filename');
+                try {
+                    const response = await fetch(`/thumbnails/${filename}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const thumbnailUrl = URL.createObjectURL(blob);
+                        img.src = thumbnailUrl;
+                        img.classList.add('thumbnail-loaded');
+                        
+                        // Clean up the blob URL when the image is no longer needed
+                        img.addEventListener('load', () => {
+                            setTimeout(() => URL.revokeObjectURL(thumbnailUrl), 1000);
+                        });
+                    }
+                } catch (error) {
+                    console.log(`Failed to load thumbnail for ${filename}:`, error);
+                    // Keep the original image src as fallback
+                }
+            }
+        }
         
         function logout() {
             localStorage.removeItem('token');
