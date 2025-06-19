@@ -370,18 +370,18 @@
                 <div class="file-item" data-filename="{{ file.filename }}">
                     <input type="checkbox" class="file-checkbox" onchange="updateBulkActions()">
                     {% if file.file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] %}
-                    <a href="/uploads/{{ file.filename }}" target="_blank">
-                        <img src="/uploads/{{ file.filename }}" alt="{{ file.filename }}">
+                    <a href="/uploads/{{ file.file_path }}" target="_blank">
+                        <img src="/uploads/{{ file.file_path }}" alt="{{ file.filename }}">
                     </a>
                     {% elif file.file_type in ['mp4', 'webm', 'ogg', 'mov', 'avi'] %}
-                    <a href="/uploads/{{ file.filename }}" target="_blank">
+                    <a href="/uploads/{{ file.file_path }}" target="_blank">
                         <video width="100%" height="auto" controls>
-                            <source src="/uploads/{{ file.filename }}" type="video/{{ file.file_type }}">
+                            <source src="/uploads/{{ file.file_path }}" type="video/{{ file.file_type }}">
                             Your browser does not support the video tag.
                         </a>
                     </div>
                     {% else %}
-                    <a href="/uploads/{{ file.filename }}" target="_blank">
+                    <a href="/uploads/{{ file.file_path }}" target="_blank">
                         <div style="background-color: #f8f8f8; padding: 2rem 0;">File: {{ file.filename }}</div>
                     </a>
                     {% endif %}
