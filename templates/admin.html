@@ -40,49 +40,88 @@
             color: #333;
         }
         .file-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1rem;
+            display: block;
             margin-top: 1rem;
         }
         .file-item {
             border: 1px solid #ddd;
             border-radius: 4px;
             padding: 1rem;
-            text-align: center;
-            transition: transform 0.2s;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fff;
+            transition: background-color 0.2s;
         }
         .file-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            background-color: #f8f8f8;
         }
-        .file-item img {
-            max-width: 100%;
-            height: auto;
-            max-height: 150px;
-            margin-bottom: 0.5rem;
+        .file-info {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-weight: bold;
+            color: white;
+        }
+        .file-icon.image {
+            background-color: #4CAF50;
+        }
+        .file-icon.video {
+            background-color: #2196F3;
+        }
+        .file-icon.other {
+            background-color: #FF9800;
+        }
+        .file-details {
+            flex-grow: 1;
         }
         .file-name {
-            font-size: 0.9rem;
-            word-break: break-all;
+            font-size: 1rem;
+            font-weight: 500;
             margin-bottom: 4px;
+            word-break: break-all;
         }
         .file-meta {
             font-size: 0.8rem;
             color: #666;
-            text-align: left;
-            margin-top: 5px;
+        }
+        .file-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .view-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .view-btn:hover {
+            background-color: #0b7dda;
         }
         .delete-btn {
             background-color: #f44336;
             color: white;
             border: none;
             border-radius: 3px;
-            padding: 3px 5px;
-            font-size: 0.7rem;
+            padding: 6px 12px;
+            font-size: 0.8rem;
             cursor: pointer;
-            margin-top: 5px;
-            float: right;
         }
         .delete-btn:hover {
             background-color: #d32f2f;
@@ -242,29 +281,33 @@
             <div class="file-list">
                 {% for file in files %}
                 <div class="file-item">
-                    {% if file.file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] %}
-                    <a href="/uploads/{{ file.filename }}" target="_blank">
-                        <img src="/uploads/{{ file.filename }}" alt="{{ file.filename }}">
-                    </a>
-                    {% elif file.file_type in ['mp4', 'webm', 'ogg', 'mov', 'avi'] %}
-                    <a href="/uploads/{{ file.filename }}" target="_blank">
-                        <video width="100%" height="auto" controls>
-                            <source src="/uploads/{{ file.filename }}" type="video/{{ file.file_type }}">
-                            Your browser does not support the video tag.
-                        </a>
-                    </div>
-                    {% else %}
-                    <a href="/uploads/{{ file.filename }}" target="_blank">
-                        <div style="background-color: #f8f8f8; padding: 2rem 0;">File: {{ file.filename }}</div>
-                    </a>
-                    {% endif %}
-                    <div class="file-name">{{ file.filename }}</div>
-                    <div class="file-meta">
-                        <small>Uploaded by: {{ file.uploaded_by }}</small><br>
-                        <small>{{ file.upload_date.split('T')[0] }}</small>
-                        {% if file.size %}
-                        <small> | Size: {{ file.size }}</small>
+                    <div class="file-info">
+                        {% if file.file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] %}
+                        <div class="file-icon image">
+                            <i class="fa fa-file-image-o" aria-hidden="true"></i>
+                        </div>
+                        {% elif file.file_type in ['mp4', 'webm', 'ogg', 'mov', 'avi'] %}
+                        <div class="file-icon video">
+                            <i class="fa fa-file-video-o" aria-hidden="true"></i>
+                        </div>
+                        {% else %}
+                        <div class="file-icon other">
+                            <i class="fa fa-file-o" aria-hidden="true"></i>
+                        </div>
                         {% endif %}
+                        <div class="file-details">
+                            <div class="file-name">{{ file.filename }}</div>
+                            <div class="file-meta">
+                                <small>Uploaded by: {{ file.uploaded_by }}</small><br>
+                                <small>{{ file.upload_date.split('T')[0] }}</small>
+                                {% if file.size %}
+                                <small> | Size: {{ file.size }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="file-actions">
+                        <a href="/uploads/{{ file.filename }}" target="_blank" class="view-btn">View</a>
                         <button class="delete-btn" onclick="deleteFile('{{ file.filename }}')">Delete</button>
                     </div>
                 </div>
