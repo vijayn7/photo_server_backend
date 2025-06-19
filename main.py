@@ -387,7 +387,7 @@ async def delete_photo(
     """
     username = current_user.username
     # ToDo: Check if user is admin and allow deletion of any photo
-    success = photo_utils.delete_file(filename, username)
+    success = photo_utils.delete_file(filename, username, current_user.admin)
     if not success:
         raise HTTPException(status_code=404, detail="Photo not found or permission denied")
     

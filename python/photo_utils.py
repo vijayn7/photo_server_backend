@@ -230,13 +230,14 @@ def get_all_files(username: Optional[str] = None) -> List[Dict[str, Any]]:
     
     return result
 
-def delete_file(filename: str, username: Optional[str] = None) -> bool:
+def delete_file(filename: str, username: Optional[str] = None, is_admin: bool = False) -> bool:
     """
     Delete a file and its metadata
     
     Args:
         filename (str): Filename to delete
         username (str, optional): If provided, only delete if uploader matches
+        is_admin (bool, optional): If True, allow deletion regardless of uploader
         
     Returns:
         bool: True if file was deleted, False otherwise
@@ -247,8 +248,8 @@ def delete_file(filename: str, username: Optional[str] = None) -> bool:
     if filename not in metadata:
         return False
     
-    # Check username if provided
-    if username is not None and metadata[filename].get("uploaded_by") != username:
+    # Check username if provided and user is not an admin
+    if not is_admin and username is not None and metadata[filename].get("uploaded_by") != username:
         return False
     
     # Delete the file
