@@ -158,11 +158,46 @@ async def admin_page(request: Request, token: str = None):
                             "admin_username": db_utils.ADMIN_USERNAME
                         })
                     else:
-                        # Redirect non-admin users
-                        return HTMLResponse(
-                            content="Access denied. You need admin privileges.",
-                            status_code=403
-                        )
+                        # Redirect non-admin users to user view
+                        return RedirectResponse(url="/user", status_code=303)
+        except jwt.PyJWTError:
+            pass
+    
+    # If we get here, authentication failed
+    return RedirectResponse(url="/", status_code=303)
+
+@app.get("/user", response_class=HTMLResponse)
+async def user_page(request: Request, token: str = None):
+    # First, check if token was provided in query parameters (from form submission)
+    if token is None:
+        # Check if token is in the Authorization header (from fetch with Bearer token)
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[1]
+    
+    if token:
+        try:
+            # Verify the token manually
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username = payload.get("sub")
+            if username:
+                user = get_user(username)
+                if user and not user.disabled:
+                    # Get photos categorized by folder
+                    my_photos = photo_utils.get_user_photos(username)
+                    global_photos = photo_utils.get_global_photos()
+                    all_photos = photo_utils.get_all_user_accessible_photos(username)
+                    
+                    return templates.TemplateResponse("user.html", {
+                        "request": request, 
+                        "user": user,
+                        "my_photos": my_photos,
+                        "global_photos": global_photos,
+                        "all_photos": all_photos,
+                        "my_photos_count": len(my_photos),
+                        "global_photos_count": len(global_photos),
+                        "total_photos_count": len(all_photos)
+                    })
         except jwt.PyJWTError:
             pass
     

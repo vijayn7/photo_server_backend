@@ -116,21 +116,36 @@
                     const token = result.access_token;
                     localStorage.setItem("token", token);
                     
-                    // Create a form to submit with the token to properly authenticate the redirect
-                    const form = document.createElement('form');
-                    form.method = 'GET';
-                    form.action = '/admin';
-                    
-                    // Add the token as a hidden field
-                    const tokenField = document.createElement('input');
-                    tokenField.type = 'hidden';
-                    tokenField.name = 'token';
-                    tokenField.value = token;
-                    form.appendChild(tokenField);
-                    
-                    // Add the form to the document and submit it
-                    document.body.appendChild(form);
-                    form.submit();
+                    // Decode the token to check if user is admin
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        const username = payload.sub;
+                        
+                        // Fetch user info to determine redirect
+                        const userResponse = await fetch('/users/me', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        
+                        if (userResponse.ok) {
+                            const userInfo = await userResponse.json();
+                            
+                            // Redirect based on user role
+                            if (userInfo.admin) {
+                                window.location.href = '/admin';
+                            } else {
+                                window.location.href = '/user';
+                            }
+                        } else {
+                            // Fallback to user view
+                            window.location.href = '/user';
+                        }
+                    } catch (decodeError) {
+                        console.error("Error decoding token:", decodeError);
+                        // Fallback to user view
+                        window.location.href = '/user';
+                    }
                 } else {
                     console.error("Login failed with status:", response.status, "Error:", result);
                     alert("Login failed: " + (result.detail || JSON.stringify(result)));

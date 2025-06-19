@@ -424,3 +424,66 @@ def is_video_file(filename: str) -> bool:
     video_extensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv']
     _, ext = os.path.splitext(filename.lower())
     return ext in video_extensions
+
+def get_user_photos(username: str) -> List[Dict[str, Any]]:
+    """
+    Get photos from a specific user's folder
+    
+    Args:
+        username (str): Username to get photos for
+        
+    Returns:
+        list: List of dictionaries with file metadata from user's folder
+    """
+    metadata = load_metadata()
+    result = []
+    
+    for unique_key, info in metadata.items():
+        # Only include files from the user's folder
+        if info.get("folder") == username:
+            result.append(info)
+    
+    # Sort by upload date (newest first)
+    result.sort(key=lambda x: x.get("upload_date", ""), reverse=True)
+    return result
+
+def get_global_photos() -> List[Dict[str, Any]]:
+    """
+    Get photos from the global shared folder
+    
+    Returns:
+        list: List of dictionaries with file metadata from global folder
+    """
+    metadata = load_metadata()
+    result = []
+    
+    for unique_key, info in metadata.items():
+        # Only include files from the global folder
+        if info.get("folder") == GLOBAL_FOLDER:
+            result.append(info)
+    
+    # Sort by upload date (newest first)
+    result.sort(key=lambda x: x.get("upload_date", ""), reverse=True)
+    return result
+
+def get_all_user_accessible_photos(username: str) -> List[Dict[str, Any]]:
+    """
+    Get all photos accessible to a user (their own + global)
+    
+    Args:
+        username (str): Username to get accessible photos for
+        
+    Returns:
+        list: List of dictionaries with file metadata accessible to user
+    """
+    metadata = load_metadata()
+    result = []
+    
+    for unique_key, info in metadata.items():
+        # Include files from user's folder or global folder
+        if info.get("folder") == username or info.get("folder") == GLOBAL_FOLDER:
+            result.append(info)
+    
+    # Sort by upload date (newest first)
+    result.sort(key=lambda x: x.get("upload_date", ""), reverse=True)
+    return result

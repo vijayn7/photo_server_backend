@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Photos - Photo Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .upload-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .files-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        h1, h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .folder-tabs {
+            display: flex;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #ddd;
+        }
+        .folder-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .folder-tab.active {
+            color: #333;
+            border-bottom-color: #4CAF50;
+            font-weight: bold;
+        }
+        .folder-tab:hover {
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .file-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .file-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 1rem;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
+        }
+        .file-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            object-position: center;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+        .file-item video {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            object-position: center;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+        .file-placeholder {
+            width: 100%;
+            height: 200px;
+            background-color: #f8f8f8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .file-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        .file-item.selected {
+            border-color: #2196F3;
+            border-width: 3px;
+            background-color: #e3f2fd;
+        }
+        .file-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+        .folder-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        .folder-badge.global {
+            background-color: #FF9800;
+        }
+        .bulk-actions {
+            margin-bottom: 15px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 4px;
+            border: 1px solid #2196F3;
+        }
+        .bulk-actions.show {
+            display: flex;
+        }
+        .select-all-btn, .bulk-delete-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .select-all-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        .select-all-btn:hover {
+            background-color: #0b7dda;
+        }
+        .bulk-delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .bulk-delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 3px 5px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-top: 5px;
+            float: right;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        .file-size-note {
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 10px;
+            text-align: center;
+        }
+        progress {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        progress::-webkit-progress-bar {
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        progress::-webkit-progress-value {
+            background-color: #4CAF50;
+            border-radius: 4px;
+        }
+        .custom-file-upload {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-form {
+            display: flex;
+            align-items: center;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .logout-btn {
+            background-color: #f44336;
+        }
+        .logout-btn:hover {
+            background-color: #d32f2f;
+        }
+        .admin-view-btn {
+            background-color: #2196F3;
+        }
+        .admin-view-btn:hover {
+            background-color: #0b7dda;
+        }
+        .selected-files-list {
+            margin-top: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .selected-file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .selected-file-item:last-child {
+            border-bottom: none;
+        }
+        .selected-file-info {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+        .selected-file-icon {
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        .selected-file-icon.image {
+            background-color: #4CAF50;
+        }
+        .selected-file-icon.video {
+            background-color: #2196F3;
+        }
+        .selected-file-icon.other {
+            background-color: #FF9800;
+        }
+        .selected-file-details {
+            flex-grow: 1;
+        }
+        .selected-file-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        .selected-file-size {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .remove-file-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .remove-file-btn:hover {
+            background-color: #d32f2f;
+        }
+        .file-name {
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin-bottom: 4px;
+        }
+        .file-meta {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: left;
+            margin-top: 5px;
+        }
+        .selection-count {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Welcome {{ user.full_name }}</h1>
+        <div class="header-buttons">
+            {% if user.admin %}
+            <button class="admin-view-btn" onclick="switchToAdminView()">Admin View</button>
+            {% endif %}
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="upload-section">
+            <h2>Upload Photos</h2>
+            <form id="uploadForm" class="upload-form">
+                <label for="file-upload" class="custom-file-upload">
+                    <i class="fa fa-cloud-upload"></i> Choose Files
+                </label>
+                <input id="file-upload" type="file" name="file" multiple onchange="previewFiles(this)"/>
+                <button type="button" onclick="uploadFiles()">Upload Selected Files</button>
+            </form>
+            
+            <!-- Selected files list -->
+            <div class="selected-files-list" id="selectedFilesList" style="display: none;">
+                <!-- Selected files will be displayed here -->
+            </div>
+            
+            <div id="batch-progress-container" style="display: none; margin-top: 15px;">
+                <div id="overall-progress" style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>Overall Progress:</span>
+                        <span id="overall-progress-text">0 of 0 files</span>
+                    </div>
+                    <progress id="overall-progress-bar" max="100" value="0" style="width: 100%; height: 20px;"></progress>
+                </div>
+                <div id="current-upload" style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span id="current-file-name">Preparing...</span>
+                        <span id="current-progress-text">0%</span>
+                    </div>
+                    <progress id="current-progress-bar" max="100" value="0" style="width: 100%; height: 15px;"></progress>
+                </div>
+                <div id="upload-status" style="font-size: 0.9rem; color: #666;"></div>
+            </div>
+            <p class="file-size-note">Maximum upload size per file: 10GB. Files will be uploaded to your personal folder.</p>
+        </div>
+        
+        <div class="files-section">
+            <h2>My Photos</h2>
+            <div class="folder-tabs">
+                <button class="folder-tab active" onclick="switchFolder('my-photos')" id="my-photos-tab">
+                    My Photos ({{ my_photos_count }})
+                </button>
+                <button class="folder-tab" onclick="switchFolder('global')" id="global-tab">
+                    Shared Photos ({{ global_photos_count }})
+                </button>
+                <button class="folder-tab" onclick="switchFolder('all')" id="all-tab">
+                    All Photos ({{ total_photos_count }})
+                </button>
+            </div>
+            
+            <input type="text" id="fileSearchInput" placeholder="Search photos..." style="padding: 8px; margin-bottom: 10px; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
+            
+            <!-- Bulk actions bar -->
+            <div class="bulk-actions" id="bulkActions">
+                <span class="selection-count" id="selectionCount">0 files selected</span>
+                <button class="select-all-btn" onclick="selectAllFiles()">Select All</button>
+                <button class="select-all-btn" onclick="deselectAllFiles()">Deselect All</button>
+                <button class="bulk-delete-btn" onclick="bulkDeleteFiles()">Delete Selected</button>
+            </div>
+            
+            <div class="file-list" id="fileList">
+                <!-- Files will be populated here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden data elements for JavaScript -->
+    <script type="application/json" id="my-photos-data">{{ my_photos | tojson | safe }}</script>
+    <script type="application/json" id="global-photos-data">{{ global_photos | tojson | safe }}</script>
+    <script type="application/json" id="all-photos-data">{{ all_photos | tojson | safe }}</script>
+    <script type="application/json" id="user-data">{{ {"username": user.username, "admin": user.admin} | tojson | safe }}</script>
+
+    <script>
+        // Load template data from JSON script elements
+        var myPhotosData = JSON.parse(document.getElementById('my-photos-data').textContent);
+        var globalPhotosData = JSON.parse(document.getElementById('global-photos-data').textContent);
+        var allPhotosData = JSON.parse(document.getElementById('all-photos-data').textContent);
+        var userData = JSON.parse(document.getElementById('user-data').textContent);
+        
+        // Create the JavaScript objects using the loaded data
+        let allFiles = {
+            my_photos: myPhotosData,
+            global: globalPhotosData,
+            all: allPhotosData
+        };
+        
+        let currentFolder = 'my-photos';
+        
+        // Check if token exists on page load
+        window.onload = function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/';
+            }
+            
+            // Attach token to all requests
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                options.headers = options.headers || {};
+                if (token && !options.headers['Authorization']) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+                return originalFetch(url, options);
+            };
+            
+            // Load initial folder
+            displayFiles(currentFolder);
+        };
+        
+        function switchFolder(folder) {
+            currentFolder = folder;
+            
+            // Update tab styles
+            document.querySelectorAll('.folder-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(folder + '-tab').classList.add('active');
+            
+            // Display files for selected folder
+            displayFiles(folder);
+            
+            // Reset bulk actions
+            updateBulkActions();
+        }
+        
+        function displayFiles(folder) {
+            const fileList = document.getElementById('fileList');
+            const files = allFiles[folder.replace('-', '_')] || [];
+            
+            fileList.innerHTML = '';
+            
+            if (files.length === 0) {
+                fileList.innerHTML = '<p style="text-align: center; color: #666; margin: 2rem 0;">No photos found.</p>';
+                return;
+            }
+            
+            files.forEach(file => {
+                const fileItem = createFileItem(file);
+                fileList.appendChild(fileItem);
+            });
+        }
+        
+        function createFileItem(file) {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.setAttribute('data-filename', file.filename);
+            div.setAttribute('data-folder', file.folder);
+            
+            const isGlobal = file.folder === 'global';
+            const currentUsername = userData.username;
+            const isAdmin = userData.admin;
+            const canDelete = !isGlobal || file.uploaded_by === currentUsername || isAdmin;
+            
+            let mediaContent = '';
+            if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].includes(file.file_type)) {
+                mediaContent = `
+                    <a href="/uploads/${file.file_path}" target="_blank">
+                        <img src="/uploads/${file.file_path}" alt="${file.filename}">
+                    </a>
+                `;
+            } else if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(file.file_type)) {
+                mediaContent = `
+                    <a href="/uploads/${file.file_path}" target="_blank">
+                        <video width="100%" height="auto" controls>
+                            <source src="/uploads/${file.file_path}" type="video/${file.file_type}">
+                            Your browser does not support the video tag.
+                        </video>
+                    </a>
+                `;
+            } else {
+                mediaContent = `
+                    <a href="/uploads/${file.file_path}" target="_blank">
+                        <div class="file-placeholder">File: ${file.filename}</div>
+                    </a>
+                `;
+            }
+            
+            div.innerHTML = `
+                ${canDelete ? '<input type="checkbox" class="file-checkbox" onchange="updateBulkActions()">' : ''}
+                <div class="folder-badge ${isGlobal ? 'global' : ''}">${isGlobal ? 'Shared' : 'My Photos'}</div>
+                ${mediaContent}
+                <div class="file-name">${file.filename}</div>
+                <div class="file-meta">
+                    <small>Uploaded by: ${file.uploaded_by}</small><br>
+                    <small>${file.upload_date.split('T')[0]}</small>
+                    ${file.size ? `<small> | Size: ${file.size}</small>` : ''}
+                    ${canDelete ? `<button class="delete-btn" onclick="deleteFile('${file.filename}', '${file.folder}')">Delete</button>` : ''}
+                </div>
+            `;
+            
+            return div;
+        }
+        
+        function switchToAdminView() {
+            window.location.href = '/admin';
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        }
+        
+        async function uploadFiles() {
+            const fileInput = document.getElementById('file-upload');
+            const files = fileInput.files;
+            const overallProgressElement = document.getElementById('overall-progress-bar');
+            const overallProgressText = document.getElementById('overall-progress-text');
+            const currentProgressElement = document.getElementById('current-progress-bar');
+            const currentFileName = document.getElementById('current-file-name');
+            const currentProgressText = document.getElementById('current-progress-text');
+            const statusText = document.getElementById('upload-status');
+            const batchProgressContainer = document.getElementById('batch-progress-container');
+            
+            if (files.length === 0) {
+                alert('Please select at least one file to upload.');
+                return;
+            }
+            
+            // Check file sizes individually
+            const maxSize = 10 * 1024 * 1024 * 1024; // 10GB
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].size > maxSize) {
+                    const fileSize = files[i].size > 1024 * 1024 * 1024 
+                        ? `${(files[i].size / 1024 / 1024 / 1024).toFixed(2)} GB` 
+                        : `${(files[i].size / 1024 / 1024).toFixed(2)} MB`;
+                    alert(`File "${files[i].name}" is too large. Maximum size is 10GB. This file is ${fileSize}`);
+                    return;
+                }
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Authentication token not found. Please log in again.');
+                window.location.href = '/';
+                return;
+            }
+            
+            try {
+                // Show batch progress container
+                batchProgressContainer.style.display = 'block';
+                overallProgressElement.value = 0;
+                overallProgressText.textContent = `0 of ${files.length} files`;
+                statusText.textContent = 'Starting upload...';
+                
+                // Convert FileList to Array for easier handling
+                const fileArray = Array.from(files);
+                
+                // Track overall progress
+                let completedFiles = 0;
+                let successfulUploads = 0;
+                let failedUploads = 0;
+                
+                // Upload files sequentially (one by one)
+                for (let i = 0; i < fileArray.length; i++) {
+                    const file = fileArray[i];
+                    currentFileName.textContent = `Uploading: ${file.name}`;
+                    currentProgressElement.value = 0;
+                    currentProgressText.textContent = '0%';
+                    
+                    try {
+                        await uploadSingleFile(file, token, currentProgressElement, currentProgressText);
+                        successfulUploads++;
+                        statusText.textContent = `Successfully uploaded: ${file.name}`;
+                    } catch (error) {
+                        failedUploads++;
+                        statusText.textContent = `Failed to upload: ${file.name} - ${error.message}`;
+                        console.error(`Upload failed for ${file.name}:`, error);
+                    }
+                    
+                    completedFiles++;
+                    overallProgressElement.value = (completedFiles / fileArray.length) * 100;
+                    overallProgressText.textContent = `${completedFiles} of ${fileArray.length} files`;
+                }
+                
+                // Final status
+                if (failedUploads === 0) {
+                    statusText.textContent = `All ${successfulUploads} files uploaded successfully!`;
+                    currentFileName.textContent = 'Upload complete!';
+                    currentProgressText.textContent = '100%';
+                    
+                    // Reload page after short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    statusText.textContent = `Upload complete: ${successfulUploads} successful, ${failedUploads} failed`;
+                    currentFileName.textContent = 'Batch upload finished';
+                }
+                
+            } catch (error) {
+                console.error('Batch upload error:', error);
+                statusText.textContent = 'An error occurred during batch upload: ' + error.message;
+            }
+        }
+        
+        // Helper function to upload a single file with progress tracking
+        function uploadSingleFile(file, token, progressElement, progressText) {
+            return new Promise((resolve, reject) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const xhr = new XMLHttpRequest();
+                
+                // Track upload progress
+                xhr.upload.addEventListener('progress', (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = (event.loaded / event.total) * 100;
+                        progressElement.value = percentComplete;
+                        progressText.textContent = `${percentComplete.toFixed(1)}%`;
+                    }
+                });
+                
+                // Upload complete
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        progressElement.value = 100;
+                        progressText.textContent = '100%';
+                        resolve();
+                    } else {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            reject(new Error(response.detail || `HTTP ${xhr.status}: ${xhr.statusText}`));
+                        } catch {
+                            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+                        }
+                    }
+                });
+                
+                // Upload failed
+                xhr.addEventListener('error', () => {
+                    reject(new Error('Network error during upload'));
+                });
+                
+                // Upload aborted
+                xhr.addEventListener('abort', () => {
+                    reject(new Error('Upload was aborted'));
+                });
+                
+                // Handle timeout
+                xhr.addEventListener('timeout', () => {
+                    reject(new Error('Upload timed out'));
+                });
+                
+                // Open and send request
+                xhr.open('POST', '/upload');
+                xhr.timeout = 3600000; // 1 hour timeout for very large files
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                xhr.send(formData);
+            });
+        }
+        
+        function previewFiles(input) {
+            const fileList = document.getElementById('selectedFilesList');
+            fileList.innerHTML = ''; // Clear existing list
+            
+            if (input.files.length === 0) {
+                fileList.style.display = 'none';
+                return;
+            }
+            
+            const files = input.files;
+            for (const file of files) {
+                const listItem = document.createElement('div');
+                listItem.className = 'selected-file-item';
+                listItem.innerHTML = `
+                    <div class="selected-file-info">
+                        <div class="selected-file-icon ${getFileIconClass(file)}">${getFileIconChar(file)}</div>
+                        <div class="selected-file-details">
+                            <div class="selected-file-name">${file.name}</div>
+                            <div class="selected-file-size">${formatFileSize(file.size)}</div>
+                        </div>
+                    </div>
+                    <button class="remove-file-btn" onclick="removeFileFromList(this, '${file.name}')">Remove</button>
+                `;
+                fileList.appendChild(listItem);
+            }
+            fileList.style.display = 'block';
+        }
+        
+        function removeFileFromList(button, fileName) {
+            const fileInput = document.getElementById('file-upload');
+            const dt = new DataTransfer();
+            
+            // Rebuild the file list without the removed file
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const file = fileInput.files[i];
+                if (file.name !== fileName) {
+                    dt.items.add(file);
+                }
+            }
+            
+            // Update the file input
+            fileInput.files = dt.files;
+            
+            // Remove the list item
+            const listItem = button.closest('.selected-file-item');
+            if (listItem) {
+                listItem.remove();
+            }
+            
+            // Hide the list if no files remain
+            if (fileInput.files.length === 0) {
+                document.getElementById('selectedFilesList').style.display = 'none';
+            }
+        }
+        
+        function getFileIconClass(file) {
+            const type = file.type.split('/')[0];
+            if (type === 'image') return 'image';
+            if (type === 'video') return 'video';
+            return 'other';
+        }
+        
+        function getFileIconChar(file) {
+            const type = file.type.split('/')[0];
+            if (type === 'image') return '📷';
+            if (type === 'video') return '🎥';
+            return '📄';
+        }
+        
+        function formatFileSize(size) {
+            if (size >= 1024 * 1024 * 1024) {
+                return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
+            } else if (size >= 1024 * 1024) {
+                return `${(size / 1024 / 1024).toFixed(2)} MB`;
+            } else if (size >= 1024) {
+                return `${(size / 1024).toFixed(2)} KB`;
+            } else {
+                return `${size} bytes`;
+            }
+        }
+        
+        // File search functionality
+        document.getElementById('fileSearchInput').addEventListener('keyup', function() {
+            const searchText = this.value.toLowerCase();
+            const fileItems = document.querySelectorAll('.file-item');
+            
+            fileItems.forEach(item => {
+                const fileName = item.querySelector('.file-name').textContent.toLowerCase();
+                const fileMeta = item.querySelector('.file-meta').textContent.toLowerCase();
+                
+                if (fileName.includes(searchText) || fileMeta.includes(searchText)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+        
+        // Delete file functionality
+        async function deleteFile(filename, folder) {
+            if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Authentication token not found. Please log in again.');
+                window.location.href = '/';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/photos/${filename}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    // Remove the file from all data structures
+                    Object.keys(allFiles).forEach(key => {
+                        allFiles[key] = allFiles[key].filter(file => file.filename !== filename || file.folder !== folder);
+                    });
+                    
+                    // Refresh the current view
+                    displayFiles(currentFolder);
+                    updateBulkActions();
+                } else {
+                    const result = await response.json();
+                    alert('Delete failed: ' + (result.detail || JSON.stringify(result)));
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('An error occurred while deleting the file: ' + error);
+            }
+        }
+        
+        // Bulk actions for files
+        function updateBulkActions() {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            const selectionCount = document.getElementById('selectionCount');
+            let selectedCount = 0;
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedCount++;
+                }
+            });
+            
+            selectionCount.textContent = `${selectedCount} files selected`;
+            
+            const bulkActions = document.getElementById('bulkActions');
+            if (selectedCount > 0) {
+                bulkActions.classList.add('show');
+            } else {
+                bulkActions.classList.remove('show');
+            }
+        }
+        
+        function selectAllFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateBulkActions();
+        }
+        
+        function deselectAllFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateBulkActions();
+        }
+        
+        async function bulkDeleteFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('No files selected for deletion');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to delete ${checkboxes.length} files?`)) {
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Authentication token not found. Please log in again.');
+                window.location.href = '/';
+                return;
+            }
+            
+            const filenames = Array.from(checkboxes).map(checkbox => checkbox.closest('.file-item').getAttribute('data-filename'));
+            
+            try {
+                const response = await fetch('/photos/delete-multiple', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ filenames })
+                });
+                
+                if (response.ok) {
+                    // Remove deleted files from all data structures
+                    filenames.forEach(filename => {
+                        Object.keys(allFiles).forEach(key => {
+                            allFiles[key] = allFiles[key].filter(file => file.filename !== filename);
+                        });
+                    });
+                    
+                    // Refresh the current view
+                    displayFiles(currentFolder);
+                    updateBulkActions();
+                } else {
+                    const result = await response.json();
+                    alert('Delete failed: ' + (result.detail || JSON.stringify(result)));
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('An error occurred while deleting files: ' + error);
+            }
+        }
+    </script>
+</body>
+</html>
