@@ -131,11 +131,11 @@
                         if (userResponse.ok) {
                             const userInfo = await userResponse.json();
                             
-                            // Redirect based on user role
+                            // Redirect based on user role with token
                             if (userInfo.admin) {
-                                window.location.href = '/admin';
+                                window.location.href = `/admin?token=${token}`;
                             } else {
-                                window.location.href = '/user';
+                                window.location.href = `/user?token=${token}`;
                             }
                         } else {
                             // Fallback to user view
@@ -143,8 +143,8 @@
                         }
                     } catch (decodeError) {
                         console.error("Error decoding token:", decodeError);
-                        // Fallback to user view
-                        window.location.href = '/user';
+                        // Fallback to user view with token
+                        window.location.href = `/user?token=${token}`;
                     }
                 } else {
                     console.error("Login failed with status:", response.status, "Error:", result);
