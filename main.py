@@ -391,3 +391,36 @@ async def delete_photo(
         raise HTTPException(status_code=404, detail="Photo not found or permission denied")
     
     return {"message": "Photo deleted successfully"}
+
+class BulkDeleteRequest(BaseModel):
+    filenames: List[str]
+
+@app.post("/photos/delete-multiple")
+async def delete_multiple_photos(
+    request: BulkDeleteRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete multiple photos in bulk
+    """
+    username = current_user.username
+    successful_deletes = []
+    failed_deletes = []
+    
+    for filename in request.filenames:
+        try:
+            success = photo_utils.delete_file(filename, username, current_user.admin)
+            if success:
+                successful_deletes.append(filename)
+            else:
+                failed_deletes.append({"filename": filename, "error": "File not found or permission denied"})
+        except Exception as e:
+            failed_deletes.append({"filename": filename, "error": str(e)})
+    
+    return {
+        "success": len(failed_deletes) == 0,
+        "deleted_count": len(successful_deletes),
+        "failed_count": len(failed_deletes),
+        "successful_deletes": successful_deletes,
+        "failed_deletes": failed_deletes
+    }

@@ -50,41 +50,57 @@
             border-radius: 4px;
             padding: 1rem;
             text-align: center;
-            transition: transform 0.2s;
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
         }
         .file-item:hover {
             transform: translateY(-5px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
-        .file-item img {
-            max-width: 100%;
-            height: auto;
-            max-height: 150px;
-            margin-bottom: 0.5rem;
+        .file-item.selected {
+            border-color: #2196F3;
+            border-width: 3px;
+            background-color: #e3f2fd;
         }
-        .file-name {
-            font-size: 0.9rem;
-            word-break: break-all;
-            margin-bottom: 4px;
+        .file-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            transform: scale(1.2);
+            cursor: pointer;
         }
-        .file-meta {
-            font-size: 0.8rem;
-            color: #666;
-            text-align: left;
-            margin-top: 5px;
+        .bulk-actions {
+            margin-bottom: 15px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 4px;
+            border: 1px solid #2196F3;
         }
-        .delete-btn {
-            background-color: #f44336;
-            color: white;
+        .bulk-actions.show {
+            display: flex;
+        }
+        .select-all-btn, .bulk-delete-btn {
+            padding: 6px 12px;
             border: none;
             border-radius: 3px;
-            padding: 3px 5px;
-            font-size: 0.7rem;
             cursor: pointer;
-            margin-top: 5px;
-            float: right;
+            font-size: 0.8rem;
         }
-        .delete-btn:hover {
+        .select-all-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        .select-all-btn:hover {
+            background-color: #0b7dda;
+        }
+        .bulk-delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .bulk-delete-btn:hover {
             background-color: #d32f2f;
         }
         .file-size-note {
@@ -311,9 +327,19 @@
         <div class="files-section">
             <h2>Uploaded Files</h2>
             <input type="text" id="fileSearchInput" placeholder="Search files..." style="padding: 8px; margin-bottom: 10px; width: 100%; border: 1px solid #ddd; border-radius: 4px;">
+            
+            <!-- Bulk actions bar -->
+            <div class="bulk-actions" id="bulkActions">
+                <span class="selection-count" id="selectionCount">0 files selected</span>
+                <button class="select-all-btn" onclick="selectAllFiles()">Select All</button>
+                <button class="select-all-btn" onclick="deselectAllFiles()">Deselect All</button>
+                <button class="bulk-delete-btn" onclick="bulkDeleteFiles()">Delete Selected</button>
+            </div>
+            
             <div class="file-list">
                 {% for file in files %}
-                <div class="file-item">
+                <div class="file-item" data-filename="{{ file.filename }}">
+                    <input type="checkbox" class="file-checkbox" onchange="updateBulkActions()">
                     {% if file.file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] %}
                     <a href="/uploads/{{ file.filename }}" target="_blank">
                         <img src="/uploads/{{ file.filename }}" alt="{{ file.filename }}">
@@ -796,6 +822,93 @@
                 });
             }
         });
+        
+        // Bulk actions for files
+        function updateBulkActions() {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            const selectionCount = document.getElementById('selectionCount');
+            let selectedCount = 0;
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedCount++;
+                }
+            });
+            
+            selectionCount.textContent = `${selectedCount} files selected`;
+            
+            const bulkActions = document.getElementById('bulkActions');
+            if (selectedCount > 0) {
+                bulkActions.classList.add('show');
+            } else {
+                bulkActions.classList.remove('show');
+            }
+        }
+        
+        function selectAllFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateBulkActions();
+        }
+        
+        function deselectAllFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateBulkActions();
+        }
+        
+        async function bulkDeleteFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('No files selected for deletion');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to delete ${checkboxes.length} files?`)) {
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Authentication token not found. Please log in again.');
+                window.location.href = '/';
+                return;
+            }
+            
+            const filenames = Array.from(checkboxes).map(checkbox => checkbox.closest('.file-item').getAttribute('data-filename'));
+            
+            try {
+                const response = await fetch('/photos/delete-multiple', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ filenames })
+                });
+                
+                if (response.ok) {
+                    // Remove deleted files from the UI
+                    filenames.forEach(filename => {
+                        const fileItem = document.querySelector(`.file-item[data-filename="${filename}"]`);
+                        if (fileItem) {
+                            fileItem.remove();
+                        }
+                    });
+                    updateBulkActions();
+                } else {
+                    const result = await response.json();
+                    alert('Delete failed: ' + (result.detail || JSON.stringify(result)));
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('An error occurred while deleting files: ' + error);
+            }
+        }
     </script>
 </body>
 </html>
