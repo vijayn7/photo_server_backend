@@ -40,88 +40,49 @@
             color: #333;
         }
         .file-list {
-            display: block;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
             margin-top: 1rem;
         }
         .file-item {
             border: 1px solid #ddd;
             border-radius: 4px;
             padding: 1rem;
-            margin-bottom: 0.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #fff;
-            transition: background-color 0.2s;
+            text-align: center;
+            transition: transform 0.2s;
         }
         .file-item:hover {
-            background-color: #f8f8f8;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
-        .file-info {
-            display: flex;
-            align-items: center;
-            flex-grow: 1;
-        }
-        .file-icon {
-            width: 40px;
-            height: 40px;
-            margin-right: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            font-weight: bold;
-            color: white;
-        }
-        .file-icon.image {
-            background-color: #4CAF50;
-        }
-        .file-icon.video {
-            background-color: #2196F3;
-        }
-        .file-icon.other {
-            background-color: #FF9800;
-        }
-        .file-details {
-            flex-grow: 1;
+        .file-item img {
+            max-width: 100%;
+            height: auto;
+            max-height: 150px;
+            margin-bottom: 0.5rem;
         }
         .file-name {
-            font-size: 1rem;
-            font-weight: 500;
-            margin-bottom: 4px;
+            font-size: 0.9rem;
             word-break: break-all;
+            margin-bottom: 4px;
         }
         .file-meta {
             font-size: 0.8rem;
             color: #666;
-        }
-        .file-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .view-btn {
-            background-color: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            padding: 6px 12px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .view-btn:hover {
-            background-color: #0b7dda;
+            text-align: left;
+            margin-top: 5px;
         }
         .delete-btn {
             background-color: #f44336;
             color: white;
             border: none;
             border-radius: 3px;
-            padding: 6px 12px;
-            font-size: 0.8rem;
+            padding: 3px 5px;
+            font-size: 0.7rem;
             cursor: pointer;
+            margin-top: 5px;
+            float: right;
         }
         .delete-btn:hover {
             background-color: #d32f2f;
@@ -246,33 +207,20 @@
     
     <div class="container">
         <div class="upload-section">
-            <h2>Upload Files</h2>
+            <h2>Upload New File</h2>
             <form id="uploadForm" class="upload-form">
                 <label for="file-upload" class="custom-file-upload">
-                    <i class="fa fa-cloud-upload"></i> Choose Files
+                    <i class="fa fa-cloud-upload"></i> Choose File
                 </label>
-                <input id="file-upload" type="file" name="file" multiple onchange="previewFiles(this)"/>
-                <button type="button" onclick="uploadFiles()">Upload Selected Files</button>
+                <input id="file-upload" type="file" name="file" onchange="previewFile(this)"/>
+                <button type="button" onclick="uploadFile()">Upload</button>
             </form>
-            <div id="file-preview-container" style="margin-top: 15px;"></div>
-            <div id="batch-progress-container" style="display: none; margin-top: 15px;">
-                <div id="overall-progress" style="margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <span>Overall Progress:</span>
-                        <span id="overall-progress-text">0 of 0 files</span>
-                    </div>
-                    <progress id="overall-progress-bar" max="100" value="0" style="width: 100%; height: 20px;"></progress>
-                </div>
-                <div id="current-upload" style="margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <span id="current-file-name">Preparing...</span>
-                        <span id="current-progress-text">0%</span>
-                    </div>
-                    <progress id="current-progress-bar" max="100" value="0" style="width: 100%; height: 15px;"></progress>
-                </div>
-                <div id="upload-status" style="font-size: 0.9rem; color: #666;"></div>
+            <img id="preview" class="image-preview" alt="File preview">
+            <div id="progress-container" style="display: none; margin-top: 15px;">
+                <progress id="upload-progress" max="100" value="0" style="width: 100%; height: 20px;"></progress>
+                <div id="progress-text" style="text-align: center; margin-top: 5px; font-size: 14px;">0%</div>
             </div>
-            <p class="file-size-note">Maximum upload size per file: 10GB. You can select multiple files for batch upload.</p>
+            <p class="file-size-note">Maximum upload size: 10GB</p>
         </div>
         
         <div class="files-section">
@@ -281,33 +229,29 @@
             <div class="file-list">
                 {% for file in files %}
                 <div class="file-item">
-                    <div class="file-info">
-                        {% if file.file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] %}
-                        <div class="file-icon image">
-                            <i class="fa fa-file-image-o" aria-hidden="true"></i>
-                        </div>
-                        {% elif file.file_type in ['mp4', 'webm', 'ogg', 'mov', 'avi'] %}
-                        <div class="file-icon video">
-                            <i class="fa fa-file-video-o" aria-hidden="true"></i>
-                        </div>
-                        {% else %}
-                        <div class="file-icon other">
-                            <i class="fa fa-file-o" aria-hidden="true"></i>
-                        </div>
-                        {% endif %}
-                        <div class="file-details">
-                            <div class="file-name">{{ file.filename }}</div>
-                            <div class="file-meta">
-                                <small>Uploaded by: {{ file.uploaded_by }}</small><br>
-                                <small>{{ file.upload_date.split('T')[0] }}</small>
-                                {% if file.size %}
-                                <small> | Size: {{ file.size }}</small>
-                                {% endif %}
-                            </div>
-                        </div>
+                    {% if file.file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] %}
+                    <a href="/uploads/{{ file.filename }}" target="_blank">
+                        <img src="/uploads/{{ file.filename }}" alt="{{ file.filename }}">
+                    </a>
+                    {% elif file.file_type in ['mp4', 'webm', 'ogg', 'mov', 'avi'] %}
+                    <a href="/uploads/{{ file.filename }}" target="_blank">
+                        <video width="100%" height="auto" controls>
+                            <source src="/uploads/{{ file.filename }}" type="video/{{ file.file_type }}">
+                            Your browser does not support the video tag.
+                        </a>
                     </div>
-                    <div class="file-actions">
-                        <a href="/uploads/{{ file.filename }}" target="_blank" class="view-btn">View</a>
+                    {% else %}
+                    <a href="/uploads/{{ file.filename }}" target="_blank">
+                        <div style="background-color: #f8f8f8; padding: 2rem 0;">File: {{ file.filename }}</div>
+                    </a>
+                    {% endif %}
+                    <div class="file-name">{{ file.filename }}</div>
+                    <div class="file-meta">
+                        <small>Uploaded by: {{ file.uploaded_by }}</small><br>
+                        <small>{{ file.upload_date.split('T')[0] }}</small>
+                        {% if file.size %}
+                        <small> | Size: {{ file.size }}</small>
+                        {% endif %}
                         <button class="delete-btn" onclick="deleteFile('{{ file.filename }}')">Delete</button>
                     </div>
                 </div>
@@ -387,32 +331,25 @@
             window.location.href = '/';
         }
         
-        async function uploadFiles() {
+        async function uploadFile() {
             const fileInput = document.getElementById('file-upload');
-            const files = fileInput.files;
-            const overallProgressElement = document.getElementById('overall-progress-bar');
-            const overallProgressText = document.getElementById('overall-progress-text');
-            const currentProgressElement = document.getElementById('current-progress-bar');
-            const currentFileName = document.getElementById('current-file-name');
-            const currentProgressText = document.getElementById('current-progress-text');
-            const statusText = document.getElementById('upload-status');
-            const batchProgressContainer = document.getElementById('batch-progress-container');
+            const file = fileInput.files[0];
+            const progressElement = document.getElementById('upload-progress');
+            const progressContainer = document.getElementById('progress-container');
             
-            if (files.length === 0) {
-                alert('Please select at least one file to upload.');
+            if (!file) {
+                alert('Please select a file first');
                 return;
             }
             
-            // Check file sizes individually
+            // Check file size (client-side validation)
             const maxSize = 10 * 1024 * 1024 * 1024; // 10GB
-            for (let i = 0; i < files.length; i++) {
-                if (files[i].size > maxSize) {
-                    const fileSize = files[i].size > 1024 * 1024 * 1024 
-                        ? `${(files[i].size / 1024 / 1024 / 1024).toFixed(2)} GB` 
-                        : `${(files[i].size / 1024 / 1024).toFixed(2)} MB`;
-                    alert(`File "${files[i].name}" is too large. Maximum size is 10GB. This file is ${fileSize}`);
-                    return;
-                }
+            if (file.size > maxSize) {
+                const fileSize = file.size > 1024 * 1024 * 1024 
+                    ? `${(file.size / 1024 / 1024 / 1024).toFixed(2)} GB` 
+                    : `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+                alert(`File is too large. Maximum size is 10GB. Your file is ${fileSize}`);
+                return;
             }
             
             const token = localStorage.getItem('token');
@@ -423,69 +360,14 @@
             }
             
             try {
-                // Show batch progress container
-                batchProgressContainer.style.display = 'block';
-                overallProgressElement.value = 0;
-                overallProgressText.textContent = `0 of ${files.length} files`;
-                statusText.textContent = 'Starting upload...';
+                // Show progress bar
+                progressContainer.style.display = 'block';
+                progressElement.value = 0;
                 
-                // Convert FileList to Array for easier handling
-                const fileArray = Array.from(files);
-                
-                // Track overall progress
-                let completedFiles = 0;
-                let successfulUploads = 0;
-                let failedUploads = 0;
-                
-                // Upload files sequentially (one by one)
-                for (let i = 0; i < fileArray.length; i++) {
-                    const file = fileArray[i];
-                    currentFileName.textContent = `Uploading: ${file.name}`;
-                    currentProgressElement.value = 0;
-                    currentProgressText.textContent = '0%';
-                    
-                    try {
-                        await uploadSingleFile(file, token, currentProgressElement, currentProgressText);
-                        successfulUploads++;
-                        statusText.textContent = `Successfully uploaded: ${file.name}`;
-                    } catch (error) {
-                        failedUploads++;
-                        statusText.textContent = `Failed to upload: ${file.name} - ${error.message}`;
-                        console.error(`Upload failed for ${file.name}:`, error);
-                    }
-                    
-                    completedFiles++;
-                    overallProgressElement.value = (completedFiles / fileArray.length) * 100;
-                    overallProgressText.textContent = `${completedFiles} of ${fileArray.length} files`;
-                }
-                
-                // Final status
-                if (failedUploads === 0) {
-                    statusText.textContent = `All ${successfulUploads} files uploaded successfully!`;
-                    currentFileName.textContent = 'Upload complete!';
-                    currentProgressText.textContent = '100%';
-                    
-                    // Reload page after short delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    statusText.textContent = `Upload complete: ${successfulUploads} successful, ${failedUploads} failed`;
-                    currentFileName.textContent = 'Batch upload finished';
-                }
-                
-            } catch (error) {
-                console.error('Batch upload error:', error);
-                statusText.textContent = 'An error occurred during batch upload: ' + error.message;
-            }
-        }
-        
-        // Helper function to upload a single file with progress tracking
-        function uploadSingleFile(file, token, progressElement, progressText) {
-            return new Promise((resolve, reject) => {
                 const formData = new FormData();
                 formData.append('file', file);
                 
+                // Use XMLHttpRequest for upload progress tracking
                 const xhr = new XMLHttpRequest();
                 
                 // Track upload progress
@@ -493,85 +375,107 @@
                     if (event.lengthComputable) {
                         const percentComplete = (event.loaded / event.total) * 100;
                         progressElement.value = percentComplete;
-                        progressText.textContent = `${percentComplete.toFixed(1)}%`;
+                        
+                        // Format sizes based on file size (GB for large files, MB for smaller ones)
+                        let loadedSize, totalSize;
+                        if (event.total > 1024 * 1024 * 1024) {
+                            // Display in GB for files over 1GB
+                            loadedSize = `${(event.loaded / 1024 / 1024 / 1024).toFixed(2)}GB`;
+                            totalSize = `${(event.total / 1024 / 1024 / 1024).toFixed(2)}GB`;
+                        } else {
+                            // Display in MB for smaller files
+                            loadedSize = `${(event.loaded / 1024 / 1024).toFixed(1)}MB`;
+                            totalSize = `${(event.total / 1024 / 1024).toFixed(1)}MB`;
+                        }
+                        
+                        document.getElementById('progress-text').textContent = 
+                            `${percentComplete.toFixed(1)}% (${loadedSize} / ${totalSize})`;
                     }
                 });
                 
                 // Upload complete
                 xhr.addEventListener('load', () => {
                     if (xhr.status >= 200 && xhr.status < 300) {
+                        // Success
                         progressElement.value = 100;
-                        progressText.textContent = '100%';
-                        resolve();
+                        document.getElementById('progress-text').textContent = 'Upload complete!';
+                        
+                        // Reload page after short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
                     } else {
+                        // Error
                         try {
                             const response = JSON.parse(xhr.responseText);
-                            reject(new Error(response.detail || `HTTP ${xhr.status}: ${xhr.statusText}`));
+                            let errorMessage = 'Upload failed: ' + (response.detail || JSON.stringify(response));
+                            
+                            // Add troubleshooting tips based on the error
+                            if (xhr.status === 413) {
+                                errorMessage += '\n\nThis may be due to server configuration limits. Try:\n' + 
+                                               '- Uploading a smaller file\n' + 
+                                               '- Breaking the file into smaller parts\n' +
+                                               '- Contacting the administrator to increase upload limits';
+                            } else if (xhr.status === 500) {
+                                errorMessage += '\n\nServer error occurred. Troubleshooting tips:\n' + 
+                                               '- Try a different file format\n' + 
+                                               '- Ensure the file is not corrupted\n' + 
+                                               '- Try again later';
+                            }
+                            
+                            alert(errorMessage);
                         } catch {
-                            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+                            alert(`Upload failed with status ${xhr.status}: ${xhr.statusText}`);
                         }
+                        progressContainer.style.display = 'none';
                     }
                 });
                 
                 // Upload failed
                 xhr.addEventListener('error', () => {
-                    reject(new Error('Network error during upload'));
+                    alert('Upload failed due to network error. Please try again.');
+                    progressContainer.style.display = 'none';
                 });
                 
                 // Upload aborted
                 xhr.addEventListener('abort', () => {
-                    reject(new Error('Upload was aborted'));
+                    alert('Upload was aborted.');
+                    progressContainer.style.display = 'none';
                 });
                 
                 // Handle timeout
                 xhr.addEventListener('timeout', () => {
-                    reject(new Error('Upload timed out'));
+                    alert('Upload timed out. The file may be too large or your connection is too slow.');
+                    progressContainer.style.display = 'none';
                 });
                 
-                // Open and send request
+                // Open and send request with extended timeout for large files
                 xhr.open('POST', '/upload');
                 xhr.timeout = 3600000; // 1 hour timeout for very large files
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
                 xhr.send(formData);
-            });
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('An error occurred during upload: ' + error);
+                progressContainer.style.display = 'none';
+            }
         }
         
-        function previewFiles(input) {
-            const fileListContainer = document.getElementById('file-preview-container');
-            fileListContainer.innerHTML = ''; // Clear previous previews
+        function previewFile(input) {
+            const preview = document.getElementById('preview');
+            const file = input.files[0];
             
-            const files = input.files;
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
+            if (file) {
                 const reader = new FileReader();
-                
                 reader.onload = function(e) {
-                    let previewElement;
                     if (file.type.startsWith('image/')) {
-                        previewElement = document.createElement('img');
-                        previewElement.src = e.target.result;
-                        previewElement.style.maxWidth = '100%';
-                        previewElement.style.height = 'auto';
-                        previewElement.style.marginBottom = '10px';
-                    } else if (file.type.startsWith('video/')) {
-                        previewElement = document.createElement('video');
-                        previewElement.src = e.target.result;
-                        previewElement.controls = true;
-                        previewElement.style.width = '100%';
-                        previewElement.style.height = 'auto';
-                        previewElement.style.marginBottom = '10px';
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
                     } else {
-                        previewElement = document.createElement('div');
-                        previewElement.textContent = `File: ${file.name}`;
-                        previewElement.style.backgroundColor = '#f8f8f8';
-                        previewElement.style.padding = '10px';
-                        previewElement.style.borderRadius = '4px';
-                        previewElement.style.marginBottom = '10px';
+                        preview.style.display = 'none';
                     }
-                    
-                    fileListContainer.appendChild(previewElement);
                 }
-                
                 reader.readAsDataURL(file);
             }
         }
