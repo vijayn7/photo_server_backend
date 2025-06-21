@@ -769,8 +769,9 @@
                         <video width="100%" height="auto" controls>
                             <source src="/uploads/${file.file_path}" type="video/${file.file_type}">
                             Your browser does not support the video tag.
-                        </a>
-                    `;
+                        </video>
+                    </a>
+                `;
             } else {
                 mediaContent = `
                     <a href="/uploads/${file.file_path}" target="_blank">
