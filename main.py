@@ -423,8 +423,32 @@ async def get_thumbnail(
     Get thumbnail for a photo
     """
     username = current_user.username
+    is_admin = current_user.admin
     
-    # Get thumbnail path using photo_utils
+    # For admin users, try to find the file in any user's folder
+    if is_admin:
+        # Find the file information to get the actual owner
+        file_info = photo_utils.find_file_info(filename)
+        if file_info:
+            file_owner = file_info.get("uploaded_by") or file_info.get("folder")
+            if file_owner:
+                # Try to get thumbnail from the file owner's folder
+                thumbnail_path = photo_utils.get_thumbnail_path(file_owner, filename)
+                
+                # If thumbnail doesn't exist, try to generate it
+                if not thumbnail_path and photo_utils.is_image(filename):
+                    original_file_path = photo_utils.get_file_original_path(filename)
+                    if original_file_path and os.path.exists(original_file_path):
+                        thumbnail_path = photo_utils.generate_thumbnail(file_owner, original_file_path)
+                
+                if thumbnail_path and os.path.exists(thumbnail_path):
+                    return FileResponse(
+                        thumbnail_path,
+                        media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=3600"}
+                    )
+    
+    # Fallback to regular user logic or if admin logic fails
     thumbnail_path = photo_utils.get_thumbnail_path(username, filename)
     
     # Check if thumbnail exists

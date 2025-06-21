@@ -422,6 +422,49 @@ def get_file_info(filename: str, username: Optional[str] = None) -> Optional[Dic
     
     return None
 
+def find_file_info(filename: str) -> Optional[Dict[str, Any]]:
+    """
+    Find file information by filename across all user folders
+    
+    Args:
+        filename (str): The filename to search for
+        
+    Returns:
+        dict or None: File metadata if found, None otherwise
+    """
+    metadata = load_metadata()
+    
+    # First try to find exact filename match
+    for unique_key, file_info in metadata.items():
+        if file_info.get("filename") == filename:
+            return file_info
+    
+    # If not found, try to find by unique_key (folder/filename)
+    if filename in metadata:
+        return metadata[filename]
+    
+    return None
+
+def get_file_original_path(filename: str) -> Optional[str]:
+    """
+    Get the original file path for a given filename
+    
+    Args:
+        filename (str): The filename to find
+        
+    Returns:
+        str or None: Full path to the original file if found, None otherwise
+    """
+    file_info = find_file_info(filename)
+    if not file_info:
+        return None
+    
+    folder = file_info.get("folder")
+    if not folder:
+        return None
+    
+    return os.path.join(UPLOADS_DIR, folder, filename)
+
 def is_image_file(filename: str) -> bool:
     """
     Check if a file is an image based on extension
