@@ -56,6 +56,23 @@ def test_enhanced_photos_api():
         print(f"Total photos: {photos_data.get('total', 0)}")
         print(f"Returned photos: {len(photos_data.get('photos', []))}")
         
+        # Test with favorite filter
+        print("\nTesting favorite filter...")
+        params_with_favorite = {
+            "limit": 10,
+            "offset": 0,
+            "sort_by": "date",
+            "favorite": "true"
+        }
+        
+        favorite_response = requests.get(f"{base_url}/photos", headers=headers, params=params_with_favorite)
+        if favorite_response.status_code == 200:
+            favorite_data = favorite_response.json()
+            print(f"✓ Favorite filter works: {len(favorite_data.get('photos', []))} favorite photos")
+        else:
+            print(f"❌ Favorite filter failed: {favorite_response.status_code}")
+            print(f"Response: {favorite_response.text}")
+        
         # Show first photo details if available
         if photos_data.get('photos'):
             first_photo = photos_data['photos'][0]

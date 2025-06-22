@@ -2246,10 +2246,14 @@
                     offset: currentPage * currentLimit,
                     sort_by: currentSort,
                     search: currentSearch,
-                    favorite: currentFavorite || '',
                     date_from: currentDateFrom,
                     date_to: currentDateTo
                 });
+                
+                // Only add favorite parameter if it has a value
+                if (currentFavorite !== null && currentFavorite !== '') {
+                    params.append('favorite', currentFavorite.toString());
+                }
 
                 const response = await fetch(`/photos?${params}`, {
                     headers: {
@@ -2430,7 +2434,12 @@
             });
 
             document.getElementById('favoriteFilter').addEventListener('change', function() {
-                currentFavorite = this.value === '' ? null : this.value;
+                const value = this.value;
+                if (value === '') {
+                    currentFavorite = null;
+                } else {
+                    currentFavorite = value === 'true';
+                }
                 currentPage = 0;
                 loadEnhancedPhotos();
             });
