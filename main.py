@@ -65,6 +65,9 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class FavoriteRequest(BaseModel):
+    is_favorite: bool
+
 def get_user(username: str):
     user_dict = db_utils.get_user(username)
     if user_dict:
@@ -373,14 +376,41 @@ async def update_admin_status(request: AdminUpdateRequest, current_user: User = 
             content={"success": False, "message": "Failed to update admin status"}
         )
 
-@app.get("/photos", response_model=List[Dict[str, Any]])
-async def get_photos(current_user: User = Depends(get_current_active_user)):
+@app.get("/photos")
+async def get_photos(
+    current_user: User = Depends(get_current_active_user),
+    limit: int = 30,
+    offset: int = 0,
+    favorite: Optional[bool] = None,
+    sort_by: str = "date",
+    search: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
+):
     """
-    Get all photos for the current user or all photos for admin
+    Get paginated photos with filtering and sorting
+    
+    Query parameters:
+    - limit: Number of photos to return (default: 30, max: 100)
+    - offset: Number of photos to skip (default: 0)
+    - favorite: Filter by favorite status (true/false)
+    - sort_by: Sort field - "date", "name", or "size" (default: "date")
+    - search: Search in filename
+    - date_from: Filter by date from (ISO format)
+    - date_to: Filter by date to (ISO format)
     """
-    username = current_user.username
-    # ToDo: Check if user is admin and return all photos if admin
-    return photo_utils.get_all_files(username)
+    username = current_user.username if not current_user.admin else None
+    
+    return photo_utils.get_photos_paginated(
+        username=username,
+        limit=limit,
+        offset=offset,
+        favorite=favorite,
+        sort_by=sort_by,
+        search=search,
+        date_from=date_from,
+        date_to=date_to
+    )
 
 @app.get("/photos/{filename}")
 async def get_photo_info(
@@ -388,15 +418,23 @@ async def get_photo_info(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get information about a specific photo
+    Get detailed information about a specific photo including metadata
     """
-    photo_info = photo_utils.get_file_info(filename)
+    photo_info = photo_utils.get_file_info(filename, current_user.username)
     if not photo_info:
         raise HTTPException(status_code=404, detail="Photo not found")
     
     # Check if user has permission to view this photo
-    # For now, any authenticated user can see any photo
-    return photo_info
+    photo_folder = photo_info.get("folder")
+    if not current_user.admin and photo_folder != current_user.username and photo_folder != "global":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Add URLs to response
+    photo_data = photo_info.copy()
+    photo_data["thumbnail_url"] = f"/thumbnails/{filename}" if photo_info.get("has_thumbnail") else None
+    photo_data["original_url"] = f"/uploads/{photo_info.get('file_path', '')}"
+    
+    return photo_data
 
 @app.delete("/photos/{filename}")
 async def delete_photo(
@@ -512,4 +550,36 @@ async def delete_multiple_photos(
         "failed_count": len(failed_deletes),
         "successful_deletes": successful_deletes,
         "failed_deletes": failed_deletes
+    }
+
+# Pydantic models for request/response
+class PhotoFavoriteRequest(BaseModel):
+    is_favorite: bool
+
+@app.patch("/photos/{filename}/favorite")
+async def toggle_photo_favorite(
+    filename: str,
+    request: FavoriteRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Toggle the favorite status of a photo
+    
+    Body parameters:
+    - is_favorite: Boolean value to set favorite status
+    """
+    success = photo_utils.update_photo_favorite_status(
+        filename=filename,
+        username=current_user.username,
+        is_favorite=request.is_favorite
+    )
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Photo not found or permission denied")
+    
+    return {
+        "success": True,
+        "filename": filename,
+        "is_favorite": request.is_favorite,
+        "message": f"Photo {'added to' if request.is_favorite else 'removed from'} favorites"
     }

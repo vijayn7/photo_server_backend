@@ -13,12 +13,150 @@ from typing import List, Dict, Optional, Any
 import json
 from PIL import Image, ImageOps
 import logging
+import piexif
+import exifread
+try:
+    import piexif
+    import exifread
+    EXIF_AVAILABLE = True
+except ImportError:
+    EXIF_AVAILABLE = False
+    print("Warning: EXIF libraries not available. Install with: pip install piexif exifread")
 
 # Default configuration
 UPLOADS_DIR = "/mnt/photos"
 GLOBAL_FOLDER = "global"
 METADATA_FILE = os.path.join(UPLOADS_DIR, "metadata.json")
 DEFAULT_THUMBNAIL_SIZE = 256  # Default thumbnail size in pixels
+
+def extract_exif_metadata(image_path: str) -> Dict[str, Any]:
+    """
+    Extract EXIF metadata from an image file
+    
+    Args:
+        image_path (str): Path to the image file
+        
+    Returns:
+        dict: Dictionary containing EXIF metadata
+    """
+    metadata = {}
+    
+    try:
+        # Try using piexif first
+        import piexif
+        
+        with open(image_path, 'rb') as f:
+            exif_dict = piexif.load(f.read())
+        
+        # Extract common EXIF data
+        if "0th" in exif_dict:
+            ifd = exif_dict["0th"]
+            
+            # Camera make and model
+            if piexif.ImageIFD.Make in ifd:
+                metadata["camera_make"] = ifd[piexif.ImageIFD.Make].decode('utf-8', errors='ignore')
+            if piexif.ImageIFD.Model in ifd:
+                metadata["camera_model"] = ifd[piexif.ImageIFD.Model].decode('utf-8', errors='ignore')
+            
+            # Image dimensions
+            if piexif.ImageIFD.ImageWidth in ifd:
+                metadata["width"] = ifd[piexif.ImageIFD.ImageWidth]
+            if piexif.ImageIFD.ImageLength in ifd:
+                metadata["height"] = ifd[piexif.ImageIFD.ImageLength]
+            
+            # Orientation
+            if piexif.ImageIFD.Orientation in ifd:
+                metadata["orientation"] = ifd[piexif.ImageIFD.Orientation]
+        
+        if "Exif" in exif_dict:
+            exif_ifd = exif_dict["Exif"]
+            
+            # Date taken
+            if piexif.ExifIFD.DateTimeOriginal in exif_ifd:
+                date_str = exif_ifd[piexif.ExifIFD.DateTimeOriginal].decode('utf-8', errors='ignore')
+                try:
+                    metadata["date_taken"] = datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S").isoformat()
+                except ValueError:
+                    metadata["date_taken"] = date_str
+            
+            # ISO speed
+            if piexif.ExifIFD.ISOSpeedRatings in exif_ifd:
+                metadata["iso"] = exif_ifd[piexif.ExifIFD.ISOSpeedRatings]
+            
+            # Exposure time
+            if piexif.ExifIFD.ExposureTime in exif_ifd:
+                exposure = exif_ifd[piexif.ExifIFD.ExposureTime]
+                metadata["exposure_time"] = f"{exposure[0]}/{exposure[1]}"
+            
+            # F-number (aperture)
+            if piexif.ExifIFD.FNumber in exif_ifd:
+                f_number = exif_ifd[piexif.ExifIFD.FNumber]
+                metadata["f_number"] = f"{f_number[0]}/{f_number[1]}"
+            
+            # Focal length
+            if piexif.ExifIFD.FocalLength in exif_ifd:
+                focal = exif_ifd[piexif.ExifIFD.FocalLength]
+                metadata["focal_length"] = f"{focal[0]}/{focal[1]}mm"
+        
+        # GPS data
+        if "GPS" in exif_dict:
+            gps_ifd = exif_dict["GPS"]
+            if gps_ifd:
+                metadata["has_gps"] = True
+                # Extract GPS coordinates if needed (more complex parsing)
+            else:
+                metadata["has_gps"] = False
+        else:
+            metadata["has_gps"] = False
+            
+    except ImportError:
+        # Fallback to exifread if piexif not available
+        try:
+            import exifread
+            
+            with open(image_path, 'rb') as f:
+                tags = exifread.process_file(f, details=False)
+            
+            # Extract basic information
+            if 'Image Make' in tags:
+                metadata["camera_make"] = str(tags['Image Make'])
+            if 'Image Model' in tags:
+                metadata["camera_model"] = str(tags['Image Model'])
+            if 'EXIF DateTimeOriginal' in tags:
+                metadata["date_taken"] = str(tags['EXIF DateTimeOriginal'])
+            if 'EXIF ISOSpeedRatings' in tags:
+                metadata["iso"] = str(tags['EXIF ISOSpeedRatings'])
+            if 'EXIF ExposureTime' in tags:
+                metadata["exposure_time"] = str(tags['EXIF ExposureTime'])
+            if 'EXIF FNumber' in tags:
+                metadata["f_number"] = str(tags['EXIF FNumber'])
+            if 'EXIF FocalLength' in tags:
+                metadata["focal_length"] = str(tags['EXIF FocalLength'])
+            if 'Image ImageWidth' in tags:
+                metadata["width"] = str(tags['Image ImageWidth'])
+            if 'Image ImageLength' in tags:
+                metadata["height"] = str(tags['Image ImageLength'])
+                
+        except ImportError:
+            # No EXIF libraries available
+            pass
+    except Exception as e:
+        # Log error but don't fail
+        logging.warning(f"Failed to extract EXIF data from {image_path}: {str(e)}")
+    
+    # Fallback: get basic image dimensions using PIL
+    if not metadata.get("width") or not metadata.get("height"):
+        try:
+            with Image.open(image_path) as img:
+                metadata["width"] = img.width
+                metadata["height"] = img.height
+                metadata["resolution"] = f"{img.width}x{img.height}"
+        except Exception:
+            pass
+    else:
+        metadata["resolution"] = f"{metadata.get('width', 0)}x{metadata.get('height', 0)}"
+    
+    return metadata
 
 def format_file_size(size_bytes: int) -> str:
     """
@@ -196,12 +334,25 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
         "original_name": filename,
         "uploaded_by": username,
         "upload_date": datetime.now().isoformat(),
+        "upload_time": datetime.now().isoformat(),  # Alias for compatibility
         "file_size": file_size,
         "size": format_file_size(file_size),
         "file_type": os.path.splitext(filename)[1].lower()[1:],
         "folder": username,  # Track which folder the file is in
-        "file_path": os.path.join(username, filename)  # Relative path from photos root
+        "file_path": os.path.join(username, filename),  # Relative path from photos root
+        "is_favorite": False,  # Default to not favorite
+        "metadata": {}  # Initialize metadata field
     }
+    
+    # Extract EXIF metadata for images
+    if is_image(filename):
+        try:
+            exif_metadata = extract_exif_metadata(file_path)
+            file_metadata["metadata"] = exif_metadata
+            print(f"Extracted EXIF metadata for {filename}: {len(exif_metadata)} fields")
+        except Exception as exif_error:
+            print(f"Error extracting EXIF metadata for {filename}: {str(exif_error)}")
+            file_metadata["metadata"] = {}
     
     # Use a unique key that includes the folder to avoid conflicts
     unique_key = f"{username}/{filename}"
@@ -215,6 +366,7 @@ def save_uploaded_file(file_obj, filename: str, username: str) -> Dict[str, Any]
             if thumbnail_path:
                 print(f"Successfully generated thumbnail for {filename}")
                 file_metadata["has_thumbnail"] = True
+                file_metadata["thumbnail_path"] = f"/thumbnails/{filename}"
             else:
                 print(f"Failed to generate thumbnail for {filename}")
                 file_metadata["has_thumbnail"] = False
@@ -687,3 +839,115 @@ def delete_thumbnail(username: str, filename: str) -> bool:
     except Exception as e:
         logging.error(f"Failed to delete thumbnail for {filename}: {str(e)}")
         return False
+
+def update_photo_favorite_status(filename: str, username: str, is_favorite: bool) -> bool:
+    """
+    Update the favorite status of a photo
+    
+    Args:
+        filename (str): Filename of the photo
+        username (str): Username of the photo owner
+        is_favorite (bool): New favorite status
+        
+    Returns:
+        bool: True if updated successfully, False otherwise
+    """
+    metadata = load_metadata()
+    unique_key = f"{username}/{filename}"
+    
+    if unique_key in metadata:
+        metadata[unique_key]["is_favorite"] = is_favorite
+        save_metadata(metadata)
+        return True
+    
+    return False
+
+def get_photos_paginated(
+    username: Optional[str] = None,
+    limit: int = 30,
+    offset: int = 0,
+    favorite: Optional[bool] = None,
+    sort_by: str = "date",
+    search: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get paginated photos with filtering and sorting
+    
+    Args:
+        username (str, optional): Filter by username (None for all accessible photos)
+        limit (int): Number of photos to return (max 100)
+        offset (int): Number of photos to skip
+        favorite (bool, optional): Filter by favorite status
+        sort_by (str): Sort field ("date", "name", "size")
+        search (str, optional): Search in filename
+        date_from (str, optional): Filter by date from (ISO format)
+        date_to (str, optional): Filter by date to (ISO format)
+        
+    Returns:
+        dict: Paginated results with photos and metadata
+    """
+    metadata = load_metadata()
+    
+    # Get all accessible photos
+    if username:
+        # User can see their own photos + global photos
+        accessible_photos = []
+        for unique_key, info in metadata.items():
+            if info.get("folder") == username or info.get("folder") == GLOBAL_FOLDER:
+                accessible_photos.append(info)
+    else:
+        # Admin can see all photos
+        accessible_photos = list(metadata.values())
+    
+    # Apply filters
+    filtered_photos = []
+    for photo in accessible_photos:
+        # Favorite filter
+        if favorite is not None and photo.get("is_favorite", False) != favorite:
+            continue
+            
+        # Search filter
+        if search and search.lower() not in photo.get("filename", "").lower():
+            continue
+            
+        # Date filters
+        upload_date = photo.get("upload_date", "")
+        if date_from and upload_date < date_from:
+            continue
+        if date_to and upload_date > date_to:
+            continue
+            
+        filtered_photos.append(photo)
+    
+    # Sort photos
+    if sort_by == "name":
+        filtered_photos.sort(key=lambda x: x.get("filename", "").lower())
+    elif sort_by == "size":
+        filtered_photos.sort(key=lambda x: x.get("file_size", 0), reverse=True)
+    else:  # Default to date
+        filtered_photos.sort(key=lambda x: x.get("upload_date", ""), reverse=True)
+    
+    # Apply pagination
+    total_count = len(filtered_photos)
+    limit = min(limit, 100)  # Cap at 100
+    paginated_photos = filtered_photos[offset:offset + limit]
+    
+    # Format response with URLs
+    photos_with_urls = []
+    for photo in paginated_photos:
+        photo_data = photo.copy()
+        # Add URLs
+        filename = photo_data.get("filename", "")
+        photo_data["thumbnail_url"] = f"/thumbnails/{filename}" if photo_data.get("has_thumbnail") else None
+        photo_data["original_url"] = f"/uploads/{photo_data.get('file_path', '')}"
+        photos_with_urls.append(photo_data)
+    
+    return {
+        "photos": photos_with_urls,
+        "total": total_count,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + limit < total_count
+    }
