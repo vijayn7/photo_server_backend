@@ -362,6 +362,8 @@
             position: relative;
             width: 100%;
             margin-bottom: 0.8rem;
+            cursor: pointer;
+            background: #1a1a1a;
         }
         .video-container video {
             width: 100%;
@@ -370,15 +372,41 @@
             border-radius: 6px;
             margin-bottom: 0;
         }
+        .video-element {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
         .video-overlay {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             opacity: 0;
             transition: opacity 0.3s ease;
+            border-radius: 6px;
         }
         .video-container:hover .video-overlay {
             opacity: 1;
+        }
+        .video-play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #333;
+            text-shadow: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
         .video-fullscreen-link {
             background-color: rgba(0, 0, 0, 0.7);
@@ -1380,15 +1408,15 @@
                 if (file.file_type === 'avi') videoType = 'mp4'; // AVI files often work with mp4 MIME type
                 
                 mediaContent = `
-                    <div class="video-container">
-                        <video width="100%" height="auto" controls preload="metadata">
+                    <div class="video-container" onclick="openVideoModal('${file.filename}', '${file.file_path}')">
+                        <video class="video-element" 
+                               preload="metadata"
+                               muted
+                               onloadedmetadata="this.currentTime = 1">
                             <source src="/uploads/${file.file_path}" type="video/${videoType}">
-                            Your browser does not support the video tag.
                         </video>
                         <div class="video-overlay">
-                            <a href="/uploads/${file.file_path}" target="_blank" class="video-fullscreen-link">
-                                <span>🎬 Open in new tab</span>
-                            </a>
+                            <div class="video-play-button">▶</div>
                         </div>
                     </div>
                 `;

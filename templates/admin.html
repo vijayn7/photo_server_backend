@@ -88,6 +88,8 @@
             position: relative;
             width: 100%;
             margin-bottom: 0.8rem;
+            cursor: pointer;
+            background: #1a1a1a;
         }
         .video-container video {
             width: 100%;
@@ -96,15 +98,41 @@
             border-radius: 6px;
             margin-bottom: 0;
         }
+        .video-element {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
         .video-overlay {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             opacity: 0;
             transition: opacity 0.3s ease;
+            border-radius: 6px;
         }
         .video-container:hover .video-overlay {
             opacity: 1;
+        }
+        .video-play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #333;
+            text-shadow: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
         .video-fullscreen-link {
             background-color: rgba(0, 0, 0, 0.7);
@@ -582,16 +610,16 @@
                              title="Click to view full resolution">
                     </a>
                     {% elif file.file_type in ['mp4', 'webm', 'ogg', 'mov', 'avi'] %}
-                    <div class="video-container">
-                        <video width="100%" height="auto" controls preload="metadata">
+                    <div class="video-container" onclick="openVideoModal('{{ file.filename }}', '{{ file.file_path }}')">
+                        <video class="video-element" 
+                               preload="metadata"
+                               muted
+                               onloadedmetadata="this.currentTime = 1">
                             {% set video_type = 'mp4' if file.file_type in ['mov', 'avi'] else file.file_type %}
                             <source src="/uploads/{{ file.file_path }}" type="video/{{ video_type }}">
-                            Your browser does not support the video tag.
                         </video>
                         <div class="video-overlay">
-                            <a href="/uploads/{{ file.file_path }}" target="_blank" class="video-fullscreen-link">
-                                <span>🎬 Open in new tab</span>
-                            </a>
+                            <div class="video-play-button">▶</div>
                         </div>
                     </div>
                     {% else %}
@@ -741,6 +769,51 @@
                     // Keep the original image src as fallback
                 }
             }
+        }
+        
+        function openVideoModal(filename, filePath) {
+            // Create a modal overlay
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                cursor: pointer;
+            `;
+            
+            // Determine video type for proper MIME type
+            const fileExtension = filename.split('.').pop().toLowerCase();
+            let videoType = fileExtension;
+            if (['mov', 'avi'].includes(fileExtension)) {
+                videoType = 'mp4';
+            }
+            
+            modal.innerHTML = `
+                <video style="max-width: 90%; max-height: 90%; border-radius: 8px;" 
+                       controls 
+                       autoplay
+                       preload="metadata">
+                    <source src="/uploads/${filePath}" type="video/${videoType}">
+                    Your browser does not support the video tag.
+                </video>
+                <div style="position: absolute; top: 20px; right: 20px; color: white; font-size: 24px; cursor: pointer;">✕</div>
+            `;
+            
+            // Close modal when clicked on overlay (but not on video)
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal || e.target.textContent === '✕') {
+                    document.body.removeChild(modal);
+                }
+            });
+            
+            document.body.appendChild(modal);
         }
         
         function logout() {
