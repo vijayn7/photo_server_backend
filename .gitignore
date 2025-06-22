@@ -32,3 +32,14 @@ uploads/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Development directories and files
+dev/deploy.log
+photos/
+thumbnails/
+data/
+
+# Node modules
+node_modules/
+frontend/build/
+frontend/node_modules/

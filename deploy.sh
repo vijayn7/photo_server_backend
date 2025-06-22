@@ -17,10 +17,59 @@ python3 -m venv venv
 source venv/bin/activate
 echo "[DEPLOY] Activated virtual environment." >> /home/vnannapu/deploy.log
 
-# Install dependencies
-echo "[DEPLOY] Installing dependencies..." >> /home/vnannapu/deploy.log
+# Install Python dependencies
+echo "[DEPLOY] Installing Python dependencies..." >> /home/vnannapu/deploy.log
 pip install -r requirements.txt
-echo "[DEPLOY] Dependencies installed." >> /home/vnannapu/deploy.log
+echo "[DEPLOY] Python dependencies installed." >> /home/vnannapu/deploy.log
+
+# Check if Node.js is installed
+echo "[DEPLOY] Checking Node.js installation..." >> /home/vnannapu/deploy.log
+if ! command -v node &> /dev/null; then
+    echo "[DEPLOY] Node.js not found. Installing Node.js..." >> /home/vnannapu/deploy.log
+    # Install Node.js using NodeSource repository
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - >> /home/vnannapu/deploy.log 2>&1
+    sudo apt-get install -y nodejs >> /home/vnannapu/deploy.log 2>&1
+    echo "[DEPLOY] Node.js installed." >> /home/vnannapu/deploy.log
+else
+    echo "[DEPLOY] Node.js already installed: $(node --version)" >> /home/vnannapu/deploy.log
+fi
+
+# Build React frontend
+echo "[DEPLOY] Building React frontend..." >> /home/vnannapu/deploy.log
+if [ -d "frontend" ]; then
+    cd frontend
+    
+    # Clean any previous builds
+    echo "[DEPLOY] Cleaning previous React build..." >> /home/vnannapu/deploy.log
+    rm -rf build/ node_modules/.cache/
+    
+    # Install npm dependencies
+    echo "[DEPLOY] Installing npm dependencies..." >> /home/vnannapu/deploy.log
+    npm ci --production=false >> /home/vnannapu/deploy.log 2>&1
+    
+    # Build the React app
+    echo "[DEPLOY] Building React app..." >> /home/vnannapu/deploy.log
+    npm run build >> /home/vnannapu/deploy.log 2>&1
+    
+    if [ $? -eq 0 ]; then
+        echo "[DEPLOY] React build completed successfully." >> /home/vnannapu/deploy.log
+        
+        # Verify build directory exists and has content
+        if [ -d "build" ] && [ "$(ls -A build 2>/dev/null)" ]; then
+            echo "[DEPLOY] React build verified - files found in build directory." >> /home/vnannapu/deploy.log
+        else
+            echo "[DEPLOY] ERROR: React build directory is empty!" >> /home/vnannapu/deploy.log
+            exit 1
+        fi
+    else
+        echo "[DEPLOY] ERROR: React build failed!" >> /home/vnannapu/deploy.log
+        exit 1
+    fi
+    
+    cd ..
+else
+    echo "[DEPLOY] WARNING: frontend directory not found. Skipping React build." >> /home/vnannapu/deploy.log
+fi
 
 # Ensure .env file exists with proper settings
 echo "[DEPLOY] Checking .env file..." >> /home/vnannapu/deploy.log
@@ -75,6 +124,14 @@ sudo systemctl daemon-reload
 
 # Check if photo-server is running
 echo "[DEPLOY] Restarting photo-server..." >> /home/vnannapu/deploy.log
+
+# Verify React build exists before starting service
+if [ ! -d "frontend/build" ]; then
+    echo "[DEPLOY] ERROR: React build not found! Service cannot start without frontend build." >> /home/vnannapu/deploy.log
+    exit 1
+fi
+
+echo "[DEPLOY] React build verified. Starting service..." >> /home/vnannapu/deploy.log
 sudo systemctl restart photo-server.service
 
 # Verify the service status with detailed log output

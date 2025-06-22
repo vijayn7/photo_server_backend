@@ -36,14 +36,32 @@ app.add_middleware(
 # This is done at the application level, separate from the server settings
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
-# Setup static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/uploads", StaticFiles(directory="/mnt/photos"), name="uploads")
+# Configure photos directory based on environment
+PHOTOS_BASE_DIR = os.environ.get("PHOTOS_PATH", "/mnt/photos")
+if not os.path.exists(PHOTOS_BASE_DIR):
+    # Fallback to local development path
+    PHOTOS_BASE_DIR = "./photos"
+    os.makedirs(PHOTOS_BASE_DIR, exist_ok=True)
+
+# Mount uploads first
+app.mount("/uploads", StaticFiles(directory=PHOTOS_BASE_DIR), name="uploads")
+
+# Serve React build files
+react_build_path = "frontend/build"
+if os.path.exists(react_build_path):
+    # Mount React's static files (CSS, JS, etc.) at /static
+    react_static_path = os.path.join(react_build_path, "static")
+    if os.path.exists(react_static_path):
+        app.mount("/static", StaticFiles(directory=react_static_path), name="react-static")
+else:
+    # Fallback to original static directory if React build doesn't exist
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
 templates = Jinja2Templates(directory="templates")
 
 # Create photos directory and global folder if they don't exist
-os.makedirs("/mnt/photos", exist_ok=True)
-os.makedirs("/mnt/photos/global", exist_ok=True)
+os.makedirs(PHOTOS_BASE_DIR, exist_ok=True)
+os.makedirs(os.path.join(PHOTOS_BASE_DIR, "global"), exist_ok=True)
 
 # Use the password hashing context from db_utils
 pwd_context = db_utils.pwd_context
@@ -125,10 +143,29 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
-# Frontend routes
-@app.get("/", response_class=HTMLResponse)
-async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+@app.get("/me")
+async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
+    """Get current user info for React frontend"""
+    user_dict = db_utils.get_user(current_user.username)
+    if user_dict:
+        # Split full_name into first_name and last_name
+        full_name = user_dict.get("full_name", "")
+        name_parts = full_name.split(" ", 1) if full_name else ["", ""]
+        first_name = name_parts[0] if len(name_parts) > 0 else ""
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+        
+        return {
+            "username": user_dict["username"],
+            "first_name": first_name,
+            "last_name": last_name,
+            "is_admin": user_dict.get("admin", False)
+        }
+    raise HTTPException(status_code=404, detail="User not found")
+
+# Legacy HTML template routes - commented out in favor of React app
+# @app.get("/", response_class=HTMLResponse)
+# async def login_page(request: Request):
+#     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, token: str = None):
@@ -412,6 +449,11 @@ async def get_photos(
         date_to=date_to
     )
 
+@app.get("/photos/global")
+async def get_global_photos(current_user: User = Depends(get_current_active_user)):
+    """Get global photos accessible to all users"""
+    return photo_utils.get_global_photos()
+
 @app.get("/photos/{filename}")
 async def get_photo_info(
     filename: str,
@@ -583,3 +625,83 @@ async def toggle_photo_favorite(
         "is_favorite": request.is_favorite,
         "message": f"Photo {'added to' if request.is_favorite else 'removed from'} favorites"
     }
+
+# Additional API endpoints for React frontend
+@app.post("/upload/global")
+async def upload_global_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Upload file to global folder (admin only)"""
+    if not current_user.admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        file_metadata = photo_utils.save_uploaded_file(file.file, file.filename, "global")
+        return {"success": True, "filename": file_metadata["filename"], "metadata": file_metadata}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+@app.delete("/photos/global/{filename}")
+async def delete_global_photo(
+    filename: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a global photo (admin only)"""
+    if not current_user.admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    success = photo_utils.delete_file(filename, "global", True)
+    if not success:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    
+    return {"message": "Photo deleted successfully"}
+
+class UserRegistration(BaseModel):
+    username: str
+    password: str
+    first_name: str
+    last_name: str
+
+@app.post("/register")
+async def register_user(user_data: UserRegistration):
+    """Register a new user"""
+    full_name = f"{user_data.first_name} {user_data.last_name}".strip()
+    email = f"{user_data.username}@example.com"  # Default email
+    
+    success = db_utils.create_user(
+        username=user_data.username,
+        password=user_data.password,
+        full_name=full_name,
+        email=email,
+        admin=False
+    )
+    
+    if not success:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    return {"success": True, "message": "User registered successfully"}
+
+# Serve React app for all non-API routes
+@app.get("/{path:path}", response_class=HTMLResponse)
+async def serve_react_app(path: str):
+    """Serve React app for any non-API route"""
+    react_build_path = "frontend/build"
+    index_file = os.path.join(react_build_path, "index.html")
+    
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    else:
+        # Fallback to basic HTML if React build doesn't exist
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Photo Server</title>
+        </head>
+        <body>
+            <h1>React app not built yet</h1>
+            <p>Please run: cd frontend && npm run build</p>
+        </body>
+        </html>
+        """)
