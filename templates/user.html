@@ -789,6 +789,33 @@
             font-size: 0.7rem;
             opacity: 0.8;
         }
+        
+        .metadata-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+            font-size: 0.75rem;
+        }
+        
+        .metadata-label {
+            font-weight: 600;
+            color: #ffffff;
+            opacity: 0.9;
+            min-width: 60px;
+        }
+        
+        .metadata-value {
+            color: #e0e0e0;
+            text-align: right;
+            font-weight: 400;
+        }
+        
+        .enhanced-photo-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
 
         .enhanced-photo-grid {
             display: grid;
@@ -2155,40 +2182,74 @@
         
         function createEnhancedPhotoItem(photo) {
             const metadata = photo.metadata || {};
-            const camera = metadata.camera || 'Unknown';
-            const specs = [];
+            const thumbnailUrl = photo.thumbnail_url || photo.original_url || `/uploads/${photo.file_path}`;
+            const originalUrl = photo.original_url || `/uploads/${photo.file_path}`;
             
+            // Camera and lens information
+            const camera = metadata.camera || 'Unknown Camera';
+            const lens = metadata.lens || '';
+            
+            // Technical specifications
+            const specs = [];
+            if (metadata.focal_length) specs.push(`${metadata.focal_length}mm`);
             if (metadata.aperture) specs.push(`f/${metadata.aperture}`);
-            if (metadata.shutter_speed) specs.push(metadata.shutter_speed);
+            if (metadata.shutter_speed) specs.push(`${metadata.shutter_speed}s`);
             if (metadata.iso) specs.push(`ISO ${metadata.iso}`);
             
-            const specsText = specs.join(', ');
+            const specsText = specs.join(' • ');
+            
+            // Date and location information
+            const uploadDate = photo.upload_date ? new Date(photo.upload_date).toLocaleDateString() : '';
+            const hasGPS = metadata.has_gps || false;
             
             return `
                 <div class="enhanced-file-item">
-                    <img src="/thumbnails/${photo.filename}" 
-                         alt="${photo.filename}"
-                         onclick="openPhotoModal('${photo.filename}', '${photo.file_path}')">
-                    
-                    <div class="metadata-overlay">
-                        <div class="metadata-info">
-                            <div class="metadata-left">
-                                <div class="camera-info">${camera}</div>
-                                ${specsText ? `<div class="photo-specs">${specsText}</div>` : ''}
-                            </div>
-                            <div class="metadata-right">
-                                <button class="favorite-btn ${photo.is_favorite ? 'favorited' : 'not-favorited'}" 
-                                        onclick="toggleFavorite('${photo.filename}', ${photo.is_favorite})">
-                                    ${photo.is_favorite ? '★' : '☆'}
-                                </button>
+                    <div class="enhanced-photo-container">
+                        <img src="${thumbnailUrl}" 
+                             alt="${photo.filename}"
+                             onclick="openPhotoModal('${photo.filename}', '${originalUrl}')">
+                        
+                        <div class="metadata-overlay">
+                            <div class="metadata-info">
+                                <div class="metadata-row">
+                                    <span class="metadata-label">Camera:</span>
+                                    <span class="metadata-value">${camera}</span>
+                                </div>
+                                ${lens ? `<div class="metadata-row">
+                                    <span class="metadata-label">Lens:</span>
+                                    <span class="metadata-value">${lens}</span>
+                                </div>` : ''}
+                                ${specsText ? `<div class="metadata-row">
+                                    <span class="metadata-label">Settings:</span>
+                                    <span class="metadata-value">${specsText}</span>
+                                </div>` : ''}
+                                ${uploadDate ? `<div class="metadata-row">
+                                    <span class="metadata-label">Date:</span>
+                                    <span class="metadata-value">${uploadDate}</span>
+                                </div>` : ''}
+                                ${hasGPS ? `<div class="metadata-row">
+                                    <span class="metadata-label">Location:</span>
+                                    <span class="metadata-value">📍 GPS Available</span>
+                                </div>` : ''}
+                                <div class="metadata-row">
+                                    <span class="metadata-label">Size:</span>
+                                    <span class="metadata-value">${formatFileSize(photo.file_size || 0)}</span>
+                                </div>
                             </div>
                         </div>
+                        
+                        <button class="favorite-btn ${photo.is_favorite ? 'favorited' : 'not-favorited'}" 
+                                onclick="toggleFavorite('${photo.filename}', ${photo.is_favorite})">
+                            ${photo.is_favorite ? '❤️' : '🤍'}
+                        </button>
                     </div>
                     
                     <div class="enhanced-file-info">
-                        <div class="enhanced-file-name">${photo.filename}</div>
-                        <div class="enhanced-file-actions">
-                            <span class="enhanced-file-size">${formatFileSize(photo.file_size || 0)}</span>
+                        <div class="enhanced-file-name" title="${photo.filename}">${photo.filename}</div>
+                        <div class="enhanced-file-meta">
+                            <span class="file-size">${formatFileSize(photo.file_size || 0)}</span>
+                            ${uploadDate ? `<span class="file-date">${uploadDate}</span>` : ''}
+                            ${photo.is_favorite ? '<span class="favorite-indicator">❤️</span>' : ''}
                         </div>
                     </div>
                 </div>

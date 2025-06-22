@@ -861,6 +861,22 @@
         .metadata-row {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+            font-size: 0.75rem;
+        }
+        
+        .metadata-label {
+            font-weight: 600;
+            color: #ffffff;
+            opacity: 0.9;
+            min-width: 60px;
+        }
+        
+        .metadata-value {
+            color: #e0e0e0;
+            text-align: right;
+            font-weight: 400;
         }
         
         .enhanced-view {
@@ -2222,6 +2238,28 @@
             }
 
             data.photos.forEach(photo => {
+                const metadata = photo.metadata || {};
+                const thumbnailUrl = photo.thumbnail_url || photo.original_url || `/uploads/${photo.file_path}`;
+                const originalUrl = photo.original_url || `/uploads/${photo.file_path}`;
+                
+                // Camera and lens information
+                const camera = metadata.camera || 'Unknown Camera';
+                const lens = metadata.lens || '';
+                
+                // Technical specifications
+                const specs = [];
+                if (metadata.focal_length) specs.push(`${metadata.focal_length}mm`);
+                if (metadata.aperture) specs.push(`f/${metadata.aperture}`);
+                if (metadata.shutter_speed) specs.push(`${metadata.shutter_speed}s`);
+                if (metadata.iso) specs.push(`ISO ${metadata.iso}`);
+                
+                const specsText = specs.join(' • ');
+                
+                // Date and location information
+                const uploadDate = photo.upload_date ? new Date(photo.upload_date).toLocaleDateString() : '';
+                const hasGPS = metadata.has_gps || false;
+                const fileSize = formatFileSize ? formatFileSize(photo.file_size || 0) : (photo.file_size || 'Unknown');
+
                 const photoElement = document.createElement('div');
                 photoElement.className = 'file-item library-photo-item';
                 photoElement.innerHTML = `
@@ -2229,26 +2267,42 @@
                             onclick="toggleFavorite('${photo.filename}')">
                         ${photo.is_favorite ? '❤️' : '🤍'}
                     </button>
-                    <img src="/uploads/${photo.file_path}" 
+                    <img src="${thumbnailUrl}" 
                          alt="${photo.filename}"
-                         onclick="openImageModal('/uploads/${photo.file_path}', '${photo.filename}')">
+                         onclick="openImageModal('${originalUrl}', '${photo.filename}')">
                     <div class="metadata-overlay">
                         <div class="metadata-info">
-                            ${photo.metadata && photo.metadata.camera ? 
-                                `<div class="metadata-row"><span>Camera:</span><span>${photo.metadata.camera}</span></div>` : ''}
-                            ${photo.metadata && photo.metadata.lens ? 
-                                `<div class="metadata-row"><span>Lens:</span><span>${photo.metadata.lens}</span></div>` : ''}
-                            ${photo.metadata && photo.metadata.focal_length ? 
-                                `<div class="metadata-row"><span>Focal Length:</span><span>${photo.metadata.focal_length}</span></div>` : ''}
-                            ${photo.metadata && photo.metadata.aperture ? 
-                                `<div class="metadata-row"><span>Aperture:</span><span>f/${photo.metadata.aperture}</span></div>` : ''}
-                            ${photo.metadata && photo.metadata.shutter_speed ? 
-                                `<div class="metadata-row"><span>Shutter:</span><span>${photo.metadata.shutter_speed}s</span></div>` : ''}
-                            ${photo.metadata && photo.metadata.iso ? 
-                                `<div class="metadata-row"><span>ISO:</span><span>${photo.metadata.iso}</span></div>` : ''}
+                            <div class="metadata-row">
+                                <span class="metadata-label">Camera:</span>
+                                <span class="metadata-value">${camera}</span>
+                            </div>
+                            ${lens ? `<div class="metadata-row">
+                                <span class="metadata-label">Lens:</span>
+                                <span class="metadata-value">${lens}</span>
+                            </div>` : ''}
+                            ${specsText ? `<div class="metadata-row">
+                                <span class="metadata-label">Settings:</span>
+                                <span class="metadata-value">${specsText}</span>
+                            </div>` : ''}
+                            ${uploadDate ? `<div class="metadata-row">
+                                <span class="metadata-label">Date:</span>
+                                <span class="metadata-value">${uploadDate}</span>
+                            </div>` : ''}
+                            ${hasGPS ? `<div class="metadata-row">
+                                <span class="metadata-label">Location:</span>
+                                <span class="metadata-value">📍 GPS Available</span>
+                            </div>` : ''}
+                            <div class="metadata-row">
+                                <span class="metadata-label">Size:</span>
+                                <span class="metadata-value">${fileSize}</span>
+                            </div>
+                            <div class="metadata-row">
+                                <span class="metadata-label">User:</span>
+                                <span class="metadata-value">${photo.username || 'Global'}</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="file-name">${photo.filename}</div>
+                    <div class="file-name" title="${photo.filename}">${photo.filename}</div>
                 `;
                 container.appendChild(photoElement);
             });
