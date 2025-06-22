@@ -1336,8 +1336,7 @@
             }
             
             files.forEach((file, index) => {
-                const fileItem = createFileItem(file);
-                fileItem.style.setProperty('--index', index);
+                const fileItem = createFileItem(file, index);
                 fileList.appendChild(fileItem);
             });
             
