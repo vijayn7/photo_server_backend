@@ -640,7 +640,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Enhanced Photos View Styles */
+        /* Search Photos View Styles */
         .photos-filters {
             background-color: #2d2d2d;
             padding: 1rem;
@@ -811,20 +811,20 @@
             font-weight: 400;
         }
         
-        .enhanced-photo-container {
+        .search-photo-container {
             position: relative;
             width: 100%;
             height: 100%;
         }
 
-        .enhanced-photo-grid {
+        .search-photo-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 1rem;
             margin-top: 1rem;
         }
 
-        .enhanced-file-item {
+        .search-file-item {
             position: relative;
             background-color: #2d2d2d;
             border-radius: 8px;
@@ -833,37 +833,37 @@
             transition: all 0.2s ease;
         }
 
-        .enhanced-file-item:hover {
+        .search-file-item:hover {
             border-color: #5d5d5d;
             transform: translateY(-2px);
         }
 
-        .enhanced-file-item img {
+        .search-file-item img {
             width: 100%;
             height: 200px;
             object-fit: cover;
             display: block;
         }
 
-        .enhanced-file-info {
+        .search-file-info {
             padding: 0.75rem;
         }
 
-        .enhanced-file-name {
+        .search-file-name {
             color: #e0e0e0;
             font-size: 0.9rem;
             margin-bottom: 0.25rem;
             word-break: break-word;
         }
 
-        .enhanced-file-actions {
+        .search-file-actions {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-top: 0.5rem;
         }
 
-        .enhanced-file-size {
+        .search-file-size {
             color: #9e9e9e;
             font-size: 0.8rem;
         }
@@ -927,8 +927,8 @@
                 <button class="view-toggle-btn" onclick="switchView('folders')" id="folders-view-btn">
                     📁 Folders
                 </button>
-                <button class="view-toggle-btn" onclick="switchView('enhanced')" id="enhanced-view-btn">
-                    ✨ Enhanced
+                <button class="view-toggle-btn" onclick="switchView('search')" id="search-view-btn">
+                    🔍 Search
                 </button>
             </div>
             
@@ -979,8 +979,8 @@
                 </div>
             </div>
             
-            <!-- Enhanced Photos View -->
-            <div class="library-view" id="enhanced-view">
+            <!-- Search Photos View -->
+            <div class="library-view" id="search-view">
                 <!-- Filters Section -->
                 <div class="photos-filters">
                     <div class="filters-row">
@@ -1034,9 +1034,9 @@
                     </div>
                 </div>
                 
-                <!-- Enhanced Photos Grid -->
-                <div class="enhanced-photo-grid" id="enhancedPhotoGrid">
-                    <!-- Enhanced photos will be populated here -->
+                <!-- Search Photos Grid -->
+                <div class="search-photo-grid" id="searchPhotoGrid">
+                    <!-- Search photos will be populated here -->
                 </div>
                 
                 <!-- Pagination Controls (Bottom) -->
@@ -1151,9 +1151,9 @@
         };
         
         let currentFolder = 'my-photos';
-        let currentView = 'library'; // 'library', 'folders', or 'enhanced'
+        let currentView = 'library'; // 'library', 'folders', or 'search'
         
-        // Enhanced Photos View Variables
+        // Search Photos View Variables
         let currentPage = 0;
         let currentLimit = 30;
         let currentSort = 'date';
@@ -1162,7 +1162,7 @@
         let currentDateFrom = '';
         let currentDateTo = '';
         let totalPhotos = 0;
-        let enhancedPhotos = [];
+        let searchPhotos = [];
         
         // Check if token exists on page load
         window.onload = function() {
@@ -1203,8 +1203,8 @@
             // Load appropriate content
             if (viewType === 'library') {
                 displayLibraryView();
-            } else if (viewType === 'enhanced') {
-                loadEnhancedPhotos();
+            } else if (viewType === 'search') {
+                loadSearchPhotos();
             } else {
                 // Always load folder library view for folders
                 displayFolderLibraryView();
@@ -2132,8 +2132,8 @@
             );
         }
         
-        // Enhanced Photos View Functions
-        async function loadEnhancedPhotos() {
+        // Search Photos View Functions
+        async function loadSearchPhotos() {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) {
@@ -2163,31 +2163,31 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    enhancedPhotos = data.photos;
+                    searchPhotos = data.photos;
                     totalPhotos = data.total;
                     
-                    displayEnhancedPhotos(data);
+                    displaySearchPhotos(data);
                     updatePaginationControls(data);
                 } else {
-                    showAlert('Failed to load enhanced photos', 'Error', 'error');
+                    showAlert('Failed to load search photos', 'Error', 'error');
                 }
             } catch (error) {
-                console.error('Error loading enhanced photos:', error);
-                showAlert('Error loading enhanced photos: ' + error.message, 'Error', 'error');
+                console.error('Error loading search photos:', error);
+                showAlert('Error loading search photos: ' + error.message, 'Error', 'error');
             }
         }
         
-        function displayEnhancedPhotos(data) {
-            const grid = document.getElementById('enhancedPhotoGrid');
+        function displaySearchPhotos(data) {
+            const grid = document.getElementById('searchPhotoGrid');
             if (!data.photos || data.photos.length === 0) {
                 grid.innerHTML = '<p style="text-align: center; color: #9e9e9e; margin: 3rem 0; font-size: 1.1rem;">No photos found.</p>';
                 return;
             }
             
-            grid.innerHTML = data.photos.map(photo => createEnhancedPhotoItem(photo)).join('');
+            grid.innerHTML = data.photos.map(photo => createSearchPhotoItem(photo)).join('');
         }
         
-        function createEnhancedPhotoItem(photo) {
+        function createSearchPhotoItem(photo) {
             const metadata = photo.metadata || {};
             const thumbnailUrl = photo.thumbnail_url || photo.original_url || `/uploads/${photo.file_path}`;
             const originalUrl = photo.original_url || `/uploads/${photo.file_path}`;
@@ -2207,11 +2207,9 @@
             
             // Date and location information
             const uploadDate = photo.upload_date ? new Date(photo.upload_date).toLocaleDateString() : '';
-            const hasGPS = metadata.has_gps || false;
-            
-            return `
-                <div class="enhanced-file-item">
-                    <div class="enhanced-photo-container">
+            const hasGPS = metadata.has_gps || false;                return `
+                <div class="search-file-item">
+                    <div class="search-photo-container">
                         <img src="${thumbnailUrl}" 
                              alt="${photo.filename}"
                              onclick="openPhotoModal('${photo.filename}', '${photo.file_path}')">
@@ -2251,9 +2249,9 @@
                         </button>
                     </div>
                     
-                    <div class="enhanced-file-info">
-                        <div class="enhanced-file-name" title="${photo.filename}">${photo.filename}</div>
-                        <div class="enhanced-file-meta">
+                    <div class="search-file-info">
+                        <div class="search-file-name" title="${photo.filename}">${photo.filename}</div>
+                        <div class="search-file-meta">
                             <span class="file-size">${formatFileSize(photo.file_size || 0)}</span>
                             ${uploadDate ? `<span class="file-date">${uploadDate}</span>` : ''}
                             ${photo.is_favorite ? '<span class="favorite-indicator">❤️</span>' : ''}
@@ -2288,13 +2286,13 @@
         function previousPage() {
             if (currentPage > 0) {
                 currentPage--;
-                loadEnhancedPhotos();
+                loadSearchPhotos();
             }
         }
         
         function nextPage() {
             currentPage++;
-            loadEnhancedPhotos();
+            loadSearchPhotos();
         }
         
         function resetPage() {
@@ -2317,7 +2315,7 @@
                 
                 if (response.ok) {
                     // Reload the current view to reflect the change
-                    loadEnhancedPhotos();
+                    loadSearchPhotos();
                 } else {
                     showAlert('Failed to update favorite status', 'Error', 'error');
                 }
@@ -2327,19 +2325,19 @@
             }
         }
         
-        // Initialize enhanced photos view when the page loads
+        // Initialize search photos view when the page loads
         document.addEventListener('DOMContentLoaded', function() {
             // Set up event listeners for filters
             document.getElementById('searchInput').addEventListener('input', function() {
                 currentSearch = this.value;
                 currentPage = 0;
-                loadEnhancedPhotos();
+                loadSearchPhotos();
             });
             
             document.getElementById('sortSelect').addEventListener('change', function() {
                 currentSort = this.value;
                 currentPage = 0;
-                loadEnhancedPhotos();
+                loadSearchPhotos();
             });
             
             document.getElementById('favoriteFilter').addEventListener('change', function() {
@@ -2350,25 +2348,25 @@
                     currentFavorite = value === 'true';
                 }
                 currentPage = 0;
-                loadEnhancedPhotos();
+                loadSearchPhotos();
             });
             
             document.getElementById('limitSelect').addEventListener('change', function() {
                 currentLimit = parseInt(this.value);
                 currentPage = 0;
-                loadEnhancedPhotos();
+                loadSearchPhotos();
             });
             
             document.getElementById('dateFromInput').addEventListener('change', function() {
                 currentDateFrom = this.value;
                 currentPage = 0;
-                loadEnhancedPhotos();
+                loadSearchPhotos();
             });
 
             document.getElementById('dateToInput').addEventListener('change', function() {
                 currentDateTo = this.value;
                 currentPage = 0;
-                loadEnhancedPhotos();
+                loadSearchPhotos();
             });
         });
     </script>
