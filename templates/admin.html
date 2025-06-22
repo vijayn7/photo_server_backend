@@ -724,6 +724,152 @@
             transform: scale(0.95);
             border: 3px solid #5e60ce;
         }
+        
+        /* Enhanced Photos View Styles */
+        .photos-filters {
+            background-color: #2a2a2a;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .filter-group label {
+            font-size: 0.8rem;
+            color: #b0b0b0;
+            font-weight: 500;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 0.5rem;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #5e60ce;
+            box-shadow: 0 0 0 2px rgba(94, 96, 206, 0.1);
+        }
+        
+        .pagination-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background-color: #2a2a2a;
+            border-radius: 8px;
+        }
+        
+        .pagination-info {
+            color: #b0b0b0;
+            font-size: 0.9rem;
+        }
+        
+        .pagination-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .pagination-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background-color: #5e60ce;
+            border-color: #5e60ce;
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .favorite-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            color: #ffffff;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .favorite-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
+        }
+        
+        .favorite-btn.favorited {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.2);
+        }
+        
+        .metadata-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+            color: white;
+            padding: 1rem;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .library-photo-item:hover .metadata-overlay {
+            opacity: 1;
+        }
+        
+        .metadata-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .metadata-row {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .enhanced-view {
+            display: none;
+        }
+        
+        .enhanced-view.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -778,6 +924,9 @@
                 </button>
                 <button class="view-toggle-btn" onclick="switchView('grid')" id="grid-view-btn">
                     🔲 Grid
+                </button>
+                <button class="view-toggle-btn" onclick="switchView('enhanced')" id="enhanced-view-btn">
+                    ⚡ Enhanced
                 </button>
             </div>
             
@@ -855,6 +1004,78 @@
                         </div>
                     </div>
                     {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Enhanced Photos View -->
+            <div class="enhanced-view" id="enhanced-view">
+                <!-- Filters Section -->
+                <div class="photos-filters">
+                    <div class="filter-group">
+                        <label for="searchInput">Search</label>
+                        <input type="text" id="searchInput" placeholder="Search photos...">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="sortSelect">Sort By</label>
+                        <select id="sortSelect">
+                            <option value="date">Date</option>
+                            <option value="name">Name</option>
+                            <option value="size">Size</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="favoriteFilter">Favorites</label>
+                        <select id="favoriteFilter">
+                            <option value="">All Photos</option>
+                            <option value="true">Favorites Only</option>
+                            <option value="false">Non-Favorites</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="limitSelect">Per Page</label>
+                        <select id="limitSelect">
+                            <option value="20">20</option>
+                            <option value="30" selected>30</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="dateFromInput">From Date</label>
+                        <input type="date" id="dateFromInput">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="dateToInput">To Date</label>
+                        <input type="date" id="dateToInput">
+                    </div>
+                </div>
+
+                <!-- Pagination Controls (Top) -->
+                <div class="pagination-controls" id="paginationTop">
+                    <div class="pagination-info" id="paginationInfoTop">Loading...</div>
+                    <div class="pagination-buttons">
+                        <button class="pagination-btn" id="prevBtnTop" onclick="previousPage()">Previous</button>
+                        <button class="pagination-btn" id="nextBtnTop" onclick="nextPage()">Next</button>
+                    </div>
+                </div>
+
+                <!-- Photos Grid -->
+                <div class="file-list" id="enhancedPhotosList">
+                    <!-- Photos will be loaded here -->
+                </div>
+
+                <!-- Pagination Controls (Bottom) -->
+                <div class="pagination-controls" id="paginationBottom">
+                    <div class="pagination-info" id="paginationInfoBottom">Loading...</div>
+                    <div class="pagination-buttons">
+                        <button class="pagination-btn" id="prevBtnBottom" onclick="previousPage()">Previous</button>
+                        <button class="pagination-btn" id="nextBtnBottom" onclick="nextPage()">Next</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -955,7 +1176,18 @@
             loadThumbnails();
         };
         
-        let currentView = 'library'; // 'library' or 'grid'
+        let currentView = 'library'; // 'library', 'grid', or 'enhanced'
+        
+        // Enhanced Photos View Variables
+        let currentPage = 0;
+        let currentLimit = 30;
+        let currentSort = 'date';
+        let currentSearch = '';
+        let currentFavorite = null;
+        let currentDateFrom = '';
+        let currentDateTo = '';
+        let totalPhotos = 0;
+        let enhancedPhotos = [];
         
         function switchView(viewType) {
             currentView = viewType;
@@ -967,7 +1199,7 @@
             document.getElementById(viewType + '-view-btn').classList.add('active');
             
             // Update view display
-            document.querySelectorAll('.library-view').forEach(view => {
+            document.querySelectorAll('.library-view, .enhanced-view').forEach(view => {
                 view.classList.remove('active');
             });
             document.getElementById(viewType + '-view').classList.add('active');
@@ -975,6 +1207,8 @@
             // Load appropriate content
             if (viewType === 'library') {
                 displayLibraryView();
+            } else if (viewType === 'enhanced') {
+                loadEnhancedPhotos();
             }
             
             // Reset bulk actions
@@ -1947,6 +2181,171 @@
                 console.error('Error creating user:', error);
                 alert('An error occurred while creating the user: ' + error.message);
             }
+        });
+
+        // Enhanced Photos View Functions
+        async function loadEnhancedPhotos() {
+            try {
+                const params = new URLSearchParams({
+                    limit: currentLimit,
+                    offset: currentPage * currentLimit,
+                    sort_by: currentSort,
+                    search: currentSearch,
+                    favorite: currentFavorite || '',
+                    date_from: currentDateFrom,
+                    date_to: currentDateTo
+                });
+
+                const response = await fetch(`/photos?${params}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    enhancedPhotos = data.photos;
+                    totalPhotos = data.total;
+                    displayEnhancedPhotos(data);
+                    updatePaginationControls(data);
+                } else {
+                    console.error('Error loading photos:', data);
+                }
+            } catch (error) {
+                console.error('Error loading enhanced photos:', error);
+            }
+        }
+
+        function displayEnhancedPhotos(data) {
+            const container = document.getElementById('enhancedPhotosList');
+            container.innerHTML = '';
+
+            if (data.photos.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #888; padding: 2rem;">No photos found</div>';
+                return;
+            }
+
+            data.photos.forEach(photo => {
+                const photoElement = document.createElement('div');
+                photoElement.className = 'file-item library-photo-item';
+                photoElement.innerHTML = `
+                    <button class="favorite-btn ${photo.is_favorite ? 'favorited' : ''}" 
+                            onclick="toggleFavorite('${photo.filename}')">
+                        ${photo.is_favorite ? '❤️' : '🤍'}
+                    </button>
+                    <img src="/uploads/${photo.file_path}" 
+                         alt="${photo.filename}"
+                         onclick="openImageModal('/uploads/${photo.file_path}', '${photo.filename}')">
+                    <div class="metadata-overlay">
+                        <div class="metadata-info">
+                            ${photo.metadata && photo.metadata.camera ? 
+                                `<div class="metadata-row"><span>Camera:</span><span>${photo.metadata.camera}</span></div>` : ''}
+                            ${photo.metadata && photo.metadata.lens ? 
+                                `<div class="metadata-row"><span>Lens:</span><span>${photo.metadata.lens}</span></div>` : ''}
+                            ${photo.metadata && photo.metadata.focal_length ? 
+                                `<div class="metadata-row"><span>Focal Length:</span><span>${photo.metadata.focal_length}</span></div>` : ''}
+                            ${photo.metadata && photo.metadata.aperture ? 
+                                `<div class="metadata-row"><span>Aperture:</span><span>f/${photo.metadata.aperture}</span></div>` : ''}
+                            ${photo.metadata && photo.metadata.shutter_speed ? 
+                                `<div class="metadata-row"><span>Shutter:</span><span>${photo.metadata.shutter_speed}s</span></div>` : ''}
+                            ${photo.metadata && photo.metadata.iso ? 
+                                `<div class="metadata-row"><span>ISO:</span><span>${photo.metadata.iso}</span></div>` : ''}
+                        </div>
+                    </div>
+                    <div class="file-name">${photo.filename}</div>
+                `;
+                container.appendChild(photoElement);
+            });
+        }
+
+        function updatePaginationControls(data) {
+            const totalPages = Math.ceil(data.total / currentLimit);
+            const currentPageNum = currentPage + 1;
+            
+            // Update pagination info
+            const paginationInfo = `Page ${currentPageNum} of ${totalPages} (${data.total} photos)`;
+            document.getElementById('paginationInfoTop').textContent = paginationInfo;
+            document.getElementById('paginationInfoBottom').textContent = paginationInfo;
+            
+            // Update button states
+            ['prevBtnTop', 'prevBtnBottom'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = currentPage === 0;
+            });
+            
+            ['nextBtnTop', 'nextBtnBottom'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = currentPage >= totalPages - 1;
+            });
+        }
+
+        function previousPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                loadEnhancedPhotos();
+            }
+        }
+
+        function nextPage() {
+            currentPage++;
+            loadEnhancedPhotos();
+        }
+
+        function resetToFirstPage() {
+            currentPage = 0; // Reset to first page
+            loadEnhancedPhotos();
+        }
+
+        async function toggleFavorite(filename) {
+            try {
+                const response = await fetch(`/photos/${filename}/favorite`, {
+                    method: 'PATCH'
+                });
+                
+                if (response.ok) {
+                    // Reload the current page to update the display
+                    loadEnhancedPhotos();
+                } else {
+                    console.error('Error toggling favorite');
+                }
+            } catch (error) {
+                console.error('Error toggling favorite:', error);
+            }
+        }
+
+        // Event listeners for enhanced photo filters
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('searchInput').addEventListener('input', function() {
+                currentSearch = this.value;
+                currentPage = 0;
+                loadEnhancedPhotos();
+            });
+
+            document.getElementById('sortSelect').addEventListener('change', function() {
+                currentSort = this.value;
+                currentPage = 0;
+                loadEnhancedPhotos();
+            });
+
+            document.getElementById('favoriteFilter').addEventListener('change', function() {
+                currentFavorite = this.value === '' ? null : this.value;
+                currentPage = 0;
+                loadEnhancedPhotos();
+            });
+
+            document.getElementById('limitSelect').addEventListener('change', function() {
+                currentLimit = parseInt(this.value);
+                currentPage = 0;
+                loadEnhancedPhotos();
+            });
+
+            document.getElementById('dateFromInput').addEventListener('change', function() {
+                currentDateFrom = this.value;
+                currentPage = 0;
+                loadEnhancedPhotos();
+            });
+
+            document.getElementById('dateToInput').addEventListener('change', function() {
+                currentDateTo = this.value;
+                currentPage = 0;
+                loadEnhancedPhotos();
+            });
         });
     </script>
 </body>
