@@ -2235,6 +2235,12 @@
         // Enhanced Photos View Functions
         async function loadEnhancedPhotos() {
             try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error('Authentication token not found');
+                    return;
+                }
+
                 const params = new URLSearchParams({
                     limit: currentLimit,
                     offset: currentPage * currentLimit,
@@ -2245,7 +2251,11 @@
                     date_to: currentDateTo
                 });
 
-                const response = await fetch(`/photos?${params}`);
+                const response = await fetch(`/photos?${params}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
                 const data = await response.json();
                 
                 if (response.ok) {
@@ -2381,8 +2391,17 @@
 
         async function toggleFavorite(filename) {
             try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error('Authentication token not found');
+                    return;
+                }
+
                 const response = await fetch(`/photos/${filename}/favorite`, {
-                    method: 'PATCH'
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
                 });
                 
                 if (response.ok) {

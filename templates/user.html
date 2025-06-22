@@ -2134,10 +2134,13 @@
         
         // Enhanced Photos View Functions
         async function loadEnhancedPhotos() {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-            
             try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error('Authentication token not found');
+                    return;
+                }
+
                 const params = new URLSearchParams({
                     limit: currentLimit,
                     offset: currentPage * currentLimit,
@@ -2147,15 +2150,15 @@
                     date_from: currentDateFrom,
                     date_to: currentDateTo
                 });
-                
+
                 const response = await fetch(`/photos?${params}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
+                const data = await response.json();
                 
                 if (response.ok) {
-                    const data = await response.json();
                     enhancedPhotos = data.photos;
                     totalPhotos = data.total;
                     
