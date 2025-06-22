@@ -42,4 +42,3 @@ data/
 # Node modules
 node_modules/
 frontend/build/
-frontend/node_modules/
