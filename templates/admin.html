@@ -2249,7 +2249,7 @@
                 photoElement.className = 'file-item library-photo-item';
                 photoElement.innerHTML = `
                     <button class="favorite-btn ${photo.is_favorite ? 'favorited' : ''}" 
-                            onclick="toggleFavorite('${photo.filename}')">
+                            onclick="toggleFavorite('${photo.filename}', ${photo.is_favorite})">
                         ${photo.is_favorite ? '❤️' : '🤍'}
                     </button>
                     <img src="${thumbnailUrl}" 
@@ -2331,7 +2331,7 @@
             loadSearchPhotos();
         }
 
-        async function toggleFavorite(filename) {
+        async function toggleFavorite(filename, currentFavorite) {
             try {
                 const token = localStorage.getItem('token');
                 if (!token) {
@@ -2342,8 +2342,10 @@
                 const response = await fetch(`/photos/${filename}/favorite`, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ is_favorite: !currentFavorite })
                 });
                 
                 if (response.ok) {
