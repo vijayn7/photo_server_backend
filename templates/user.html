@@ -183,6 +183,52 @@
             opacity: 1;
         }
         
+        .library-video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            background: #1a1a1a;
+        }
+        
+        .library-video-element {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .library-video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .library-video-container:hover .library-video-overlay {
+            opacity: 1;
+        }
+        
+        .video-play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #333;
+            text-shadow: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
         .library-photo-item .video-indicator {
             position: absolute;
             bottom: 8px;
@@ -1084,12 +1130,23 @@
                          onclick="openPhotoModal('${photo.filename}', '${photo.file_path}')">
                 `;
             } else if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(photo.file_type)) {
+                // For videos in library view, show a video element with poster/preview
+                let videoType = photo.file_type;
+                if (photo.file_type === 'mov') videoType = 'mp4';
+                if (photo.file_type === 'avi') videoType = 'mp4';
+                
                 mediaContent = `
-                    <img class="library-photo-image" 
-                         data-filename="${photo.filename}"
-                         src="/uploads/${photo.file_path}" 
-                         alt="${photo.filename}"
-                         onclick="window.open('/uploads/${photo.file_path}', '_blank')">
+                    <div class="library-video-container" onclick="openVideoModal('${photo.filename}', '${photo.file_path}')">
+                        <video class="library-video-element" 
+                               preload="metadata"
+                               muted
+                               onloadedmetadata="this.currentTime = 1">
+                            <source src="/uploads/${photo.file_path}" type="video/${videoType}">
+                        </video>
+                        <div class="library-video-overlay">
+                            <div class="video-play-button">▶</div>
+                        </div>
+                    </div>
                 `;
                 indicators += '<div class="video-indicator">🎬 Video</div>';
             } else {
@@ -1173,6 +1230,51 @@
             // Close modal when clicked
             modal.addEventListener('click', () => {
                 document.body.removeChild(modal);
+            });
+            
+            document.body.appendChild(modal);
+        }
+        
+        function openVideoModal(filename, filePath) {
+            // Create a modal overlay
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                cursor: pointer;
+            `;
+            
+            // Determine video type for proper MIME type
+            const fileExtension = filename.split('.').pop().toLowerCase();
+            let videoType = fileExtension;
+            if (['mov', 'avi'].includes(fileExtension)) {
+                videoType = 'mp4';
+            }
+            
+            modal.innerHTML = `
+                <video style="max-width: 90%; max-height: 90%; border-radius: 8px;" 
+                       controls 
+                       autoplay
+                       preload="metadata">
+                    <source src="/uploads/${filePath}" type="video/${videoType}">
+                    Your browser does not support the video tag.
+                </video>
+                <div style="position: absolute; top: 20px; right: 20px; color: white; font-size: 24px; cursor: pointer;">✕</div>
+            `;
+            
+            // Close modal when clicked on overlay (but not on video)
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal || e.target.textContent === '✕') {
+                    document.body.removeChild(modal);
+                }
             });
             
             document.body.appendChild(modal);
