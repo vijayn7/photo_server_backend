@@ -32,3 +32,6 @@ uploads/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# add the directory frontend/node_modules to .gitignore
+frontend/node_modules/
