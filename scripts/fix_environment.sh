@@ -73,48 +73,71 @@ if [ ${#missing_packages[@]} -gt 0 ]; then
     fi
 fi
 
-echo -e "\n3. Checking users database"
-if [ -f "python/users.json" ]; then
-    echo "✓ users.json exists"
-    echo "Users in database: $($PYTHON_CMD -c "import json; print(len(json.load(open('python/users.json'))))")"
+echo -e "\n3. Checking SQLite database"
+if [ -f "photos/photo_server.db" ]; then
+    echo "✓ SQLite database exists at photos/photo_server.db"
 else
-    echo "✗ users.json not found"
+    echo "✗ SQLite database not found - will be created on first startup"
 fi
 
-echo -e "\n4. Testing db_utils.py functionality"
+echo -e "\n4. Testing database connectivity"
 
-# Create a temporary test script
-cat > /tmp/test_db_utils.py << EOL
+# Create a temporary test script for SQLite
+cat > /tmp/test_database.py << EOL
 import sys
 import os
+import asyncio
 sys.path.append(os.path.abspath("."))
-from python import db_utils
 
-print("Environment variables:")
-print(f"ADMIN_USERNAME: '{db_utils.ADMIN_USERNAME}'")
-print(f"ADMIN_PASSWORD set: {'Yes' if db_utils.ADMIN_PASSWORD else 'No'}")
+async def test_database():
+    try:
+        from database import database, init_database
+        from python import db_utils_sql
+        
+        print("Environment variables:")
+        print(f"ADMIN_USERNAME: '{db_utils_sql.ADMIN_USERNAME}'")
+        print(f"ADMIN_PASSWORD set: {'Yes' if db_utils_sql.ADMIN_PASSWORD else 'No'}")
+        
+        # Initialize database
+        init_database()
+        await database.connect()
+        
+        # Test password hashing
+        try:
+            hashed = db_utils_sql.pwd_context.hash("test_password")
+            print("✓ Password hashing works")
+        except Exception as e:
+            print(f"✗ Password hashing failed: {str(e)}")
+        
+        # Test database operations
+        try:
+            users = await db_utils_sql.load_users()
+            print(f"✓ Database connection works, found {len(users)} users")
+            
+            # Test authentication
+            if db_utils_sql.ADMIN_USERNAME:
+                user = await db_utils_sql.authenticate_user(db_utils_sql.ADMIN_USERNAME, db_utils_sql.ADMIN_PASSWORD)
+                if user:
+                    print(f"✓ Authentication works for admin user")
+                else:
+                    print(f"✗ Authentication failed for admin user")
+            else:
+                print("✗ ADMIN_USERNAME not set")
+                
+        except Exception as e:
+            print(f"✗ Database operations failed: {str(e)}")
+        
+        await database.disconnect()
+        
+    except Exception as e:
+        print(f"✗ Database test failed: {str(e)}")
 
-# Test password hashing
-try:
-    hashed = db_utils.pwd_context.hash("test_password")
-    print("✓ Password hashing works")
-except Exception as e:
-    print(f"✗ Password hashing failed: {str(e)}")
-
-# Test user authentication
-if os.path.exists(db_utils.USERS_FILE):
-    user = db_utils.authenticate_user(db_utils.ADMIN_USERNAME, db_utils.ADMIN_PASSWORD)
-    if user:
-        print(f"✓ Authentication works for admin user")
-    else:
-        print(f"✗ Authentication failed for admin user")
-else:
-    print("✗ users.json not found, can't test authentication")
+asyncio.run(test_database())
 EOL
 
-echo "Running test script..."
-$PYTHON_CMD /tmp/test_db_utils.py
-rm /tmp/test_db_utils.py
+echo "Running database test script..."
+$PYTHON_CMD /tmp/test_database.py
+rm /tmp/test_database.py
 
 echo -e "\n5. Checking for systemd service"
 if command -v systemctl &> /dev/null; then
@@ -131,7 +154,7 @@ fi
 
 echo -e "\n===== Diagnosis Complete ====="
 echo "Based on the diagnosis, would you like to:"
-echo "1. Create a fresh users database (will delete existing users)"
+echo "1. Reset the SQLite database (will delete existing users)"
 echo "2. Update admin credentials"
 echo "3. Restart the service"
 echo "4. Exit"
@@ -140,12 +163,12 @@ read -r choice
 
 case $choice in
     1)
-        echo "Creating fresh users database..."
-        if [ -f python/users.json ]; then
-            mv python/users.json python/users.json.bak.$(date +%Y%m%d%H%M%S)
+        echo "Resetting SQLite database..."
+        if [ -f photos/photo_server.db ]; then
+            mv photos/photo_server.db photos/photo_server.db.bak.$(date +%Y%m%d%H%M%S)
+            echo "✓ Backed up existing database"
         fi
-        $PYTHON_CMD -c "import sys; import os; sys.path.append('python'); import db_utils; db_utils.load_users()"
-        echo "✓ Created fresh users database"
+        echo "✓ Database will be recreated on next startup"
         ;;
     2)
         echo "Updating admin credentials in .env file..."

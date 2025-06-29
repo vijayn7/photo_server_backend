@@ -11,10 +11,11 @@ import jwt
 from datetime import datetime, timedelta
 import os
 import shutil
-from python import db_utils
+from python import db_utils_sql
 from python import photo_utils
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+from database import database, init_database
 
 # Get JWT settings from environment variables
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key")
@@ -22,6 +23,20 @@ ALGORITHM = os.environ.get("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 app = FastAPI()
+
+# Database startup and shutdown events
+@app.on_event("startup")
+async def startup():
+    """Initialize database connection and create tables"""
+    init_database()
+    await database.connect()
+    # Ensure default users exist
+    await db_utils_sql.ensure_default_users()
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Close database connection"""
+    await database.disconnect()
 
 # Add CORS middleware
 app.add_middleware(
@@ -38,15 +53,15 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 # Setup static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/uploads", StaticFiles(directory="/mnt/photos"), name="uploads")
+app.mount("/uploads", StaticFiles(directory="./photos"), name="uploads")
 templates = Jinja2Templates(directory="templates")
 
 # Create photos directory and global folder if they don't exist
-os.makedirs("/mnt/photos", exist_ok=True)
-os.makedirs("/mnt/photos/global", exist_ok=True)
+os.makedirs("./photos", exist_ok=True)
+os.makedirs("./photos/global", exist_ok=True)
 
-# Use the password hashing context from db_utils
-pwd_context = db_utils.pwd_context
+# Use the password hashing context from db_utils_sql
+pwd_context = db_utils_sql.pwd_context
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -68,14 +83,14 @@ class Token(BaseModel):
 class FavoriteRequest(BaseModel):
     is_favorite: bool
 
-def get_user(username: str):
-    user_dict = db_utils.get_user(username)
+async def get_user(username: str):
+    user_dict = await db_utils_sql.get_user(username)
     if user_dict:
         return UserInDB(**user_dict)
     return None
 
-def authenticate_user(username: str, password: str):
-    user_dict = db_utils.authenticate_user(username, password)
+async def authenticate_user(username: str, password: str):
+    user_dict = await db_utils_sql.authenticate_user(username, password)
     if not user_dict:
         return False
     return UserInDB(**user_dict)
@@ -100,7 +115,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception
-    user = get_user(username)
+    user = await get_user(username)
     if user is None:
         raise credentials_exception
     return user
@@ -112,7 +127,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(form_data.username, form_data.password)
+    user = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -145,20 +160,20 @@ async def admin_page(request: Request, token: str = None):
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             username = payload.get("sub")
             if username:
-                user = get_user(username)
+                user = await get_user(username)
                 if user and not user.disabled:
                     # Check if user is an admin
                     if user.admin:
                         # Get files with metadata using the photo_utils module
                         files = photo_utils.get_all_files()
                         # Load all users to display in the admin panel
-                        all_users = db_utils.load_users()
+                        all_users = await db_utils_sql.load_users()
                         return templates.TemplateResponse("admin.html", {
                             "request": request, 
                             "files": files, 
                             "user": user,
                             "users": all_users,
-                            "admin_username": db_utils.ADMIN_USERNAME
+                            "admin_username": db_utils_sql.ADMIN_USERNAME
                         })
                     else:
                         # Redirect non-admin users to user view
@@ -184,7 +199,7 @@ async def user_page(request: Request, token: str = None):
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             username = payload.get("sub")
             if username:
-                user = get_user(username)
+                user = await get_user(username)
                 if user and not user.disabled:
                     # Get photos categorized by folder
                     my_photos = photo_utils.get_user_photos(username)
@@ -320,7 +335,7 @@ async def admin_create_user(
             detail="Only administrators can create new users"
         )
     
-    success = db_utils.create_user(
+    success = await db_utils_sql.create_user(
         username=user_data.username,
         email=user_data.email,
         full_name=user_data.full_name,
@@ -342,7 +357,7 @@ async def admin_create_user(
 @app.get("/users")
 async def get_all_users(current_user: User = Depends(get_current_active_user)):
     # Only admin-level users should access this endpoint in production
-    users = db_utils.load_users()
+    users = await db_utils_sql.load_users()
     return users
 
 # Class for admin update request data
@@ -356,17 +371,17 @@ async def update_admin_status(request: AdminUpdateRequest, current_user: User = 
     Update the admin status of a user. Only the configured admin user can update admin status.
     """
     # Check if the current user is the admin user
-    if current_user.username != db_utils.ADMIN_USERNAME:
+    if current_user.username != db_utils_sql.ADMIN_USERNAME:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
-            content={"success": False, "message": f"Only {db_utils.ADMIN_USERNAME} can update admin privileges"}
+            content={"success": False, "message": f"Only {db_utils_sql.ADMIN_USERNAME} can update admin privileges"}
         )
     
-    # Call the db_utils function to update admin status
+    # Call the db_utils_sql function to update admin status
     if request.admin_status:
-        success = db_utils.grant_admin_privileges(current_user.username, request.target_username)
+        success = await db_utils_sql.grant_admin_privileges(current_user.username, request.target_username)
     else:
-        success = db_utils.revoke_admin_privileges(current_user.username, request.target_username)
+        success = await db_utils_sql.revoke_admin_privileges(current_user.username, request.target_username)
     
     if success:
         return {"success": True, "message": f"Admin status for {request.target_username} has been updated"}
