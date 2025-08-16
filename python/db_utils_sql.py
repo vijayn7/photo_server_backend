@@ -4,6 +4,7 @@ Handles user management with SQLite database instead of JSON files.
 """
 
 import os
+import json
 from passlib.context import CryptContext
 from database import database, users_table
 from sqlalchemy import select, insert, update, delete
@@ -16,6 +17,48 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ADMIN_USERNAME = os.environ.get("PHOTO_SERVER_ADMIN")
 ADMIN_PASSWORD = os.environ.get("PHOTO_SERVER_ADMIN_PASSWORD")
 
+def load_users_config(config_file: str = "users_config.json") -> List[Dict]:
+    """
+    Load user configuration from JSON file
+    
+    Args:
+        config_file (str): Path to the users configuration file
+        
+    Returns:
+        list: List of user dictionaries
+    """
+    try:
+        # Try to load from the project root directory
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), config_file)
+        
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+            return config.get("default_users", [])
+    except FileNotFoundError:
+        print(f"Warning: {config_file} not found, using fallback default users")
+        # Fallback to hardcoded users if file doesn't exist
+        return [
+            {
+                "username": "alice",
+                "email": "alice@example.com",
+                "full_name": "Alice Smith",
+                "password": "secret",
+                "disabled": False,
+                "admin": False,
+            },
+            {
+                "username": ADMIN_USERNAME or "vijayn7",
+                "email": f"{ADMIN_USERNAME or 'vijayn7'}@example.com",
+                "full_name": "Admin User",
+                "password": ADMIN_PASSWORD or "admin_password",
+                "disabled": False,
+                "admin": True,
+            }
+        ]
+    except json.JSONDecodeError as e:
+        print(f"Error parsing {config_file}: {e}")
+        return []
+
 async def ensure_default_users():
     """
     Ensure default users exist in the database, create them if they don't
@@ -25,36 +68,37 @@ async def ensure_default_users():
     users = await database.fetch_all(query)
     
     if not users:
-        # Create default users
-        default_users = [
-            {
-                "username": "alice",
-                "email": "alice@example.com",
-                "full_name": "Alice Smith",
-                "hashed_password": pwd_context.hash("secret"),
-                "disabled": False,
-                "admin": False,
-            },
-            {
-                "username": ADMIN_USERNAME,
-                "email": f"{ADMIN_USERNAME}@example.com",
-                "full_name": "Admin User",
-                "hashed_password": pwd_context.hash(ADMIN_PASSWORD),
-                "disabled": False,
-                "admin": True,
-            }
-        ]
+        # Load users from configuration file
+        user_configs = load_users_config()
         
-        for user_data in default_users:
+        print(f"Creating {len(user_configs)} default users from configuration...")
+        
+        for user_config in user_configs:
+            # Hash the plain text password
+            hashed_password = pwd_context.hash(user_config["password"])
+            
+            # Override admin status from environment variables if specified
+            username = user_config["username"]
+            is_admin = user_config.get("admin", False)
+            
+            # If this username matches ADMIN_USERNAME from env, force admin status
+            if ADMIN_USERNAME and username == ADMIN_USERNAME:
+                is_admin = True
+                if ADMIN_PASSWORD:
+                    # Use password from environment if specified
+                    hashed_password = pwd_context.hash(ADMIN_PASSWORD)
+            
             query = insert(users_table).values(
-                username=user_data["username"],
-                email=user_data["email"],
-                full_name=user_data["full_name"],
-                hashed_password=user_data["hashed_password"],
-                disabled=user_data["disabled"],
-                admin=user_data["admin"]
+                username=username,
+                email=user_config["email"],
+                full_name=user_config["full_name"],
+                hashed_password=hashed_password,
+                disabled=user_config.get("disabled", False),
+                admin=is_admin
             )
             await database.execute(query)
+            
+        print(f"✅ Created {len(user_configs)} default users successfully")
 
 async def load_users() -> Dict:
     """

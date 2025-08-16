@@ -5,6 +5,9 @@ env/
 venv/
 ENV/
 
+# User Data
+users_config.json
+
 # Python
 __pycache__/
 *.py[cod]
