@@ -610,3 +610,27 @@ async def toggle_photo_favorite(
         "is_favorite": request.is_favorite,
         "message": f"Photo {'added to' if request.is_favorite else 'removed from'} favorites"
     }
+
+@app.get("/users")
+async def get_all_users(current_user: User = Depends(get_current_active_user)):
+    """
+    Get all usernames from users_config.json
+    Only accessible by authenticated users
+    """
+    try:
+        # Load users from the JSON configuration file
+        users_config = db_utils_sql.load_users_config()
+        
+        # Extract just the usernames
+        usernames = [user["username"] for user in users_config]
+        
+        return {
+            "success": True,
+            "usernames": usernames,
+            "count": len(usernames)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load users from configuration: {str(e)}"
+        )
