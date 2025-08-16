@@ -9,7 +9,7 @@ journalctl -u photo-api -f
 
 Check status:
 
-sudo systemctl status photo-server.service
+sudo journalctl -u photo-server.service -f
 sudo systemctl status webhook.service
 
 Webhook logs:

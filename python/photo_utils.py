@@ -23,8 +23,8 @@ except ImportError:
     EXIF_AVAILABLE = False
     print("Warning: EXIF libraries not available. Install with: pip install piexif exifread")
 
-# Default configuration
-UPLOADS_DIR = "/mnt/photos"
+# Configuration - Now configurable via environment variables
+UPLOADS_DIR = os.environ.get("PHOTOS_UPLOAD_DIR", "./photos")
 GLOBAL_FOLDER = "global"
 METADATA_FILE = os.path.join(UPLOADS_DIR, "metadata.json")
 DEFAULT_THUMBNAIL_SIZE = 256  # Default thumbnail size in pixels

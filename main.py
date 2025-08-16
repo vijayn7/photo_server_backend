@@ -51,14 +51,17 @@ app.add_middleware(
 # This is done at the application level, separate from the server settings
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
+# Get upload directory from environment variable (same as photo_utils.py)
+PHOTOS_UPLOAD_DIR = os.environ.get("PHOTOS_UPLOAD_DIR", "./photos")
+
 # Setup static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/uploads", StaticFiles(directory="./photos"), name="uploads")
+app.mount("/uploads", StaticFiles(directory=PHOTOS_UPLOAD_DIR), name="uploads")
 templates = Jinja2Templates(directory="templates")
 
 # Create photos directory and global folder if they don't exist
-os.makedirs("./photos", exist_ok=True)
-os.makedirs("./photos/global", exist_ok=True)
+os.makedirs(PHOTOS_UPLOAD_DIR, exist_ok=True)
+os.makedirs(os.path.join(PHOTOS_UPLOAD_DIR, "global"), exist_ok=True)
 
 # Use the password hashing context from db_utils_sql
 pwd_context = db_utils_sql.pwd_context
@@ -249,7 +252,7 @@ async def upload_file(
         if not username:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        user = get_user(username)
+        user = await get_user(username)
         if not user or user.disabled:
             raise HTTPException(status_code=401, detail="Invalid user")
         
