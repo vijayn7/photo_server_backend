@@ -10,8 +10,24 @@ from database import database, users_table
 from sqlalchemy import select, insert, update, delete
 from typing import Dict, Optional, List
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing with defensive bcrypt initialization
+try:
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+except Exception as e:
+    print(f"⚠️ Warning: bcrypt initialization issue: {e}")
+    print("🔧 Attempting alternative bcrypt configuration...")
+    try:
+        # Alternative configuration that's more compatible
+        pwd_context = CryptContext(
+            schemes=["bcrypt"], 
+            deprecated="auto",
+            bcrypt__rounds=12
+        )
+        print("✅ Successfully initialized bcrypt with alternative config")
+    except Exception as e2:
+        print(f"❌ Failed to initialize bcrypt: {e2}")
+        print("💡 Please run: pip install bcrypt==4.0.1 passlib==1.7.4")
+        raise
 
 # Get admin username and password from environment variables
 ADMIN_USERNAME = os.environ.get("PHOTO_SERVER_ADMIN")

@@ -22,6 +22,15 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key")
 ALGORITHM = os.environ.get("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
+# Password hashing with defensive bcrypt initialization
+try:
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+except Exception as e:
+    print(f"⚠️ Warning: bcrypt initialization issue: {e}")
+    print("🔧 Using bcrypt from db_utils_sql...")
+    # Import the pwd_context from db_utils_sql if main.py fails
+    pwd_context = None
+
 app = FastAPI()
 
 # Database startup and shutdown events
